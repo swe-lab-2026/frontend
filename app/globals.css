@@ -1,26 +1,40 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/* BiletFlow design tokens (see the Claude Design canvas "BiletFlow Organizer Web"). */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --font-sans: var(--font-inter), system-ui, sans-serif;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-ink: #151516;
+  --color-ink-2: #2e3b49;
+  --color-muted: #5b6573;
+  --color-subtle: #8a939e;
+  --color-canvas: #f4f5f7;
+  --color-surface: #ffffff;
+  --color-chip: #f0f1f3;
+  --color-line: #e6e8eb;
+  --color-line-soft: #eef0f2;
+  --color-field: #d5d9de;
+
+  --color-brand: #1f8b3b;
+  --color-brand-hover: #197532;
+  --color-brand-soft: #e8f4ec;
+  --color-brand-ink: #17672c;
+
+  --color-warn-soft: #fff4db;
+  --color-warn-ink: #7a4f00;
+  --color-danger: #c4320a;
+  --color-danger-soft: #feeceb;
+  --color-danger-ink: #a3200f;
+  --color-info-soft: #eef4ff;
+  --color-info-ink: #1d3f8a;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
 }
