@@ -1,20 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { Alert, Button, CheckIcon, CrossIcon, Field, Input } from "@/components/ui";
 import { ApiError } from "@/lib/api/client";
 import { authApi } from "@/lib/api/endpoints";
 import { errorMessage, fieldErrors } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n/I18nProvider";
+import { safeNext } from "@/lib/registration";
 import { EMAIL_RE, isStrongPassword, passwordRules } from "@/lib/validation";
 
 type Form = { first_name: string; last_name: string; email: string; password: string };
 
-export default function RegisterPage() {
+function RegisterForm() {
   const { t } = useI18n();
   const router = useRouter();
+  const next = safeNext(useSearchParams().get("next"));
   const [form, setForm] = useState<Form>({ first_name: "", last_name: "", email: "", password: "" });
   const [errors, setErrors] = useState<Partial<Record<keyof Form, string>>>({});
   const [formError, setFormError] = useState<React.ReactNode>(null);
@@ -48,7 +50,7 @@ export default function RegisterPage() {
         first_name: form.first_name.trim(),
         last_name: form.last_name.trim(),
       });
-      router.push(`/verify-email?email=${encodeURIComponent(result.email)}&ttl=${result.code_expires_in}`);
+      router.push(`/verify-email?email=${encodeURIComponent(result.email)}&ttl=${result.code_expires_in}&next=${encodeURIComponent(next)}`);
     } catch (error) {
       if (error instanceof ApiError && error.code === "EMAIL_ALREADY_EXISTS") {
         setErrors({ email: t.errors.EMAIL_ALREADY_EXISTS });
@@ -108,10 +110,18 @@ export default function RegisterPage() {
 
       <p className="text-center text-[15px] text-muted">
         {t.auth.haveAccount}{" "}
-        <Link href="/login" className="font-semibold text-brand-ink hover:underline">
+        <Link href={`/login?next=${encodeURIComponent(next)}`} className="font-semibold text-brand-ink hover:underline">
           {t.auth.signInButton}
         </Link>
       </p>
     </>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterForm />
+    </Suspense>
   );
 }

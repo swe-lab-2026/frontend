@@ -2,10 +2,13 @@ import { apiRequest } from "./client";
 import type {
   Event,
   EventAdmin,
+  EventAttendee,
   EventInventory,
   EventPayload,
   EventPreview,
   EventSummary,
+  Order,
+  OrderCreateRequest,
   OrganizerProfile,
   OrganizerProfileCreate,
   OrganizerProfileUpdate,
@@ -74,6 +77,21 @@ export const eventsApi = {
   unpublish: (id: string) => apiRequest<Event>(`/events/${id}/unpublish`, { method: "POST" }),
   cancel: (id: string) => apiRequest<Event>(`/events/${id}/cancel`, { method: "POST" }),
   inventory: (id: string) => apiRequest<EventInventory>(`/events/${id}/inventory`),
+  attendees: (id: string, limit = 500, offset = 0) =>
+    apiRequest<EventAttendee[]>(`/events/${id}/attendees`, { query: { limit, offset } }),
+};
+
+// Attendee-facing reads. The token is still sent when present (the backend
+// treats it as optional), so an organizer previewing their own event works too.
+export const catalogApi = {
+  list: (limit = 100, offset = 0) => apiRequest<EventSummary[]>("/events/catalog", { query: { limit, offset } }),
+  event: (id: string) => apiRequest<Event>(`/events/${id}`),
+  ticketTypes: (eventId: string) => apiRequest<TicketType[]>(`/events/${eventId}/ticket-types`),
+};
+
+export const ordersApi = {
+  create: (body: OrderCreateRequest) => apiRequest<Order>("/orders", { method: "POST", body }),
+  get: (id: string) => apiRequest<Order>(`/orders/${id}`),
 };
 
 export const ticketTypesApi = {
