@@ -61,6 +61,7 @@ export function AppHeader() {
   const router = useRouter();
 
   const nav = [
+    { href: "/catalog", label: t.nav.catalog },
     { href: "/events", label: t.nav.dashboard },
     { href: "/profile", label: t.nav.profile },
   ];
@@ -114,6 +115,65 @@ export function AppHeader() {
           >
             {t.nav.signOut}
           </button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+/**
+ * Header for attendee pages, which work signed in or out: signed-in users get
+ * a link to their cabinet, everyone else a sign-in link that returns here.
+ */
+export function SiteHeader() {
+  const { t } = useI18n();
+  const { status, logout } = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  async function handleLogout() {
+    await logout();
+    router.refresh();
+  }
+
+  return (
+    <header className="border-b border-line bg-surface">
+      <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6">
+        <div className="flex flex-wrap items-center gap-7">
+          <Logo href="/catalog" />
+          <nav aria-label={t.nav.catalog} className="flex flex-wrap gap-1">
+            <Link
+              href="/catalog"
+              aria-current={pathname === "/catalog" ? "page" : undefined}
+              className="rounded-full px-4 py-2.5 text-[15px] font-medium text-ink-2 hover:bg-chip aria-[current=page]:bg-chip aria-[current=page]:font-semibold aria-[current=page]:text-ink"
+            >
+              {t.nav.catalog}
+            </Link>
+            {status === "authenticated" && (
+              <Link href="/events" className="rounded-full px-4 py-2.5 text-[15px] font-medium text-ink-2 hover:bg-chip">
+                {t.nav.dashboard}
+              </Link>
+            )}
+          </nav>
+        </div>
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher />
+          {status === "authenticated" ? (
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="min-h-11 rounded-xl px-3 text-[15px] font-medium text-muted hover:bg-chip hover:text-ink"
+            >
+              {t.nav.signOut}
+            </button>
+          ) : status === "anonymous" ? (
+            <Link
+              href={`/login?next=${encodeURIComponent(pathname)}`}
+              className="inline-flex h-11 items-center rounded-xl bg-ink px-4 text-[15px] font-semibold text-white hover:bg-black"
+            >
+              {t.nav.signIn}
+            </Link>
+          ) : null}
         </div>
       </div>
     </header>

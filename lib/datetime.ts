@@ -101,3 +101,14 @@ export function formatDateTime(iso: string | null | undefined, timeZone: string,
     : { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" };
   return new Intl.DateTimeFormat(locale, { timeZone, ...options }).format(new Date(iso));
 }
+
+/** Pieces for a calendar-style date badge: day, short month, weekday + time. */
+export function dateParts(iso: string, timeZone: string, locale: string) {
+  const date = new Date(iso);
+  const part = (options: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(locale, { timeZone, ...options }).format(date);
+  return {
+    day: part({ day: "2-digit" }),
+    month: hasMonthNames(locale) ? part({ month: "short" }).replace(".", "") : part({ month: "2-digit" }),
+    time: part(hasMonthNames(locale) ? { weekday: "short", hour: "2-digit", minute: "2-digit" } : { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }),
+  };
+}

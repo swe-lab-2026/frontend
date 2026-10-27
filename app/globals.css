@@ -15,8 +15,9 @@
   --color-line-soft: #eef0f2;
   --color-field: #d5d9de;
 
-  --color-brand: #1f8b3b;
-  --color-brand-hover: #197532;
+  /* #197532 gives white button text 5.8:1 (WCAG AA needs 4.5:1). */
+  --color-brand: #197532;
+  --color-brand-hover: #17672c;
   --color-brand-soft: #e8f4ec;
   --color-brand-ink: #17672c;
 

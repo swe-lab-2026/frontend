@@ -215,3 +215,44 @@ export type ApiErrorBody = {
     details: { errors?: ValidationIssue[] | string[]; [key: string]: unknown };
   };
 };
+
+export type OrderStatus = "PENDING" | "PAID" | "EXPIRED" | "CANCELLED" | "REFUNDED" | string;
+
+export type OrderCreateRequest = {
+  event_id: string;
+  items: { ticket_type_id: string; quantity: number }[];
+};
+
+export type OrderItem = {
+  ticket_type_id: string;
+  ticket_type_name: string;
+  quantity: number;
+  unit_price: string;
+  final_price: string;
+};
+
+export type Order = {
+  id: string;
+  event_id: string;
+  status: OrderStatus;
+  currency: string;
+  subtotal_amount: string;
+  total_amount: string;
+  /** Set only for unpaid orders: when the inventory hold is released. */
+  expires_at: string | null;
+  items: OrderItem[];
+};
+
+export type EventAttendee = {
+  attendee_id: string;
+  user_id: string | null;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  registered_at: string;
+  order_id: string;
+  order_number: number;
+  currency: string;
+  total_amount: string;
+  ticket_count: number;
+};

@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/api/client";
 import { authApi } from "@/lib/api/endpoints";
 import { errorMessage } from "@/lib/errors";
 import { fmt, useI18n } from "@/lib/i18n/I18nProvider";
+import { safeNext } from "@/lib/registration";
 import { EMAIL_RE } from "@/lib/validation";
 
 // Matches the backend default EMAIL_CODE_RESEND_COOLDOWN_SECONDS; the real
@@ -19,6 +20,7 @@ function VerifyForm() {
   const router = useRouter();
   const params = useSearchParams();
   const emailFromUrl = params.get("email") ?? "";
+  const next = safeNext(params.get("next"));
   const ttlSeconds = Number(params.get("ttl")) || 600;
 
   const [email, setEmail] = useState(emailFromUrl);
@@ -54,10 +56,10 @@ function VerifyForm() {
     setSubmitting(true);
     try {
       await authApi.verifyEmail(email.trim(), code);
-      router.replace(`/login?verified=1&email=${encodeURIComponent(email.trim())}`);
+      router.replace(`/login?verified=1&email=${encodeURIComponent(email.trim())}&next=${encodeURIComponent(next)}`);
     } catch (error) {
       if (error instanceof ApiError && error.code === "EMAIL_ALREADY_VERIFIED") {
-        router.replace(`/login?email=${encodeURIComponent(email.trim())}`);
+        router.replace(`/login?email=${encodeURIComponent(email.trim())}&next=${encodeURIComponent(next)}`);
         return;
       }
       setFormError(errorMessage(error, t));
@@ -143,7 +145,7 @@ function VerifyForm() {
       </div>
 
       <p className="text-center text-[15px] text-muted">
-        <Link href="/login" className="font-semibold text-brand-ink hover:underline">
+        <Link href={`/login?next=${encodeURIComponent(next)}`} className="font-semibold text-brand-ink hover:underline">
           {t.auth.backToLogin}
         </Link>
       </p>
