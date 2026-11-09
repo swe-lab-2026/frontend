@@ -10,8 +10,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "BiletFlow — кабинет организатора",
-  description: "Создание мероприятий и управление билетами",
+  title: "BiletFlow",
+  description: "Мероприятия и билеты в Казахстане",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

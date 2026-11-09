@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Alert, LinkButton, PageLoader, PlusIcon, StatusBadge } from "@/components/ui";
 import { eventsApi } from "@/lib/api/endpoints";
 import type { EventStatus, EventSummary } from "@/lib/api/types";
-import { hasMonthNames } from "@/lib/datetime";
+import { dateParts } from "@/lib/datetime";
 import { errorMessage } from "@/lib/errors";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import { useApi } from "@/lib/useApi";
@@ -13,16 +13,6 @@ import { useOrganizerProfile } from "@/lib/useOrganizerProfile";
 
 type Filter = "ALL" | EventStatus;
 const FILTERS: Filter[] = ["ALL", "DRAFT", "PUBLISHED", "UNPUBLISHED", "CANCELLED", "COMPLETED"];
-
-function dateParts(iso: string, timeZone: string, locale: string) {
-  const date = new Date(iso);
-  const part = (options: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(locale, { timeZone, ...options }).format(date);
-  return {
-    day: part({ day: "2-digit" }),
-    month: hasMonthNames(locale) ? part({ month: "short" }).replace(".", "") : part({ month: "2-digit" }),
-    time: part(hasMonthNames(locale) ? { weekday: "short", hour: "2-digit", minute: "2-digit" } : { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }),
-  };
-}
 
 export default function EventsPage() {
   const { t, intlLocale } = useI18n();

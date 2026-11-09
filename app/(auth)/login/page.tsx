@@ -7,6 +7,7 @@ import { Alert, Button, Field, Input } from "@/components/ui";
 import { ApiError } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { errorMessage } from "@/lib/errors";
+import { safeNext } from "@/lib/registration";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import { EMAIL_RE } from "@/lib/validation";
 
@@ -15,6 +16,7 @@ function LoginForm() {
   const { login, status } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
+  const nextPath = safeNext(params.get("next"));
 
   const [email, setEmail] = useState(params.get("email") ?? "");
   const [password, setPassword] = useState("");
@@ -23,8 +25,8 @@ function LoginForm() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (status === "authenticated") router.replace("/events");
-  }, [status, router]);
+    if (status === "authenticated") router.replace(nextPath);
+  }, [status, router, nextPath]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -38,10 +40,10 @@ function LoginForm() {
     setSubmitting(true);
     try {
       await login(email.trim(), password);
-      router.replace("/events");
+      router.replace(nextPath);
     } catch (error) {
       if (error instanceof ApiError && error.code === "EMAIL_NOT_VERIFIED") {
-        router.push(`/verify-email?email=${encodeURIComponent(email.trim())}`);
+        router.push(`/verify-email?email=${encodeURIComponent(email.trim())}&next=${encodeURIComponent(nextPath)}`);
         return;
       }
       setFormError(errorMessage(error, t));
@@ -79,7 +81,7 @@ function LoginForm() {
 
       <p className="text-center text-[15px] text-muted">
         {t.auth.noAccount}{" "}
-        <Link href="/register" className="font-semibold text-brand-ink hover:underline">
+        <Link href={`/register?next=${encodeURIComponent(nextPath)}`} className="font-semibold text-brand-ink hover:underline">
           {t.auth.register}
         </Link>
       </p>
