@@ -41,6 +41,19 @@ export const authApi = {
     }),
   login: (email: string, password: string) =>
     apiRequest<TokenResponse>("/auth/login", { method: "POST", body: { email, password }, auth: false }),
+  /** Always succeeds for a well-formed email, so it never reveals whether an account exists. */
+  requestPasswordReset: (email: string) =>
+    apiRequest<{ email: string; code_expires_in: number; retry_after: number }>("/auth/request-password-reset", {
+      method: "POST",
+      body: { email },
+      auth: false,
+    }),
+  resetPassword: (email: string, token: string, newPassword: string) =>
+    apiRequest<{ email: string }>("/auth/reset-password", {
+      method: "POST",
+      body: { email, token, new_password: newPassword },
+      auth: false,
+    }),
   logout: (refreshToken: string) =>
     apiRequest<{ ok: boolean }>("/auth/logout", {
       method: "POST",

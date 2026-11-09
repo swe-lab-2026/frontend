@@ -60,6 +60,7 @@ function LoginForm() {
       </div>
 
       {params.get("verified") && <Alert tone="success">{t.auth.verified}</Alert>}
+      {params.get("reset") && <Alert tone="success">{t.auth.resetDone}</Alert>}
       {params.get("expired") && <Alert tone="info">{t.auth.sessionExpired}</Alert>}
       {formError && <Alert tone="error">{formError}</Alert>}
 
@@ -74,6 +75,12 @@ function LoginForm() {
             <Input {...props} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
           )}
         </Field>
+        <Link
+          href={`/forgot-password${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ""}`}
+          className="-mt-2 w-fit text-sm font-medium text-brand-ink hover:underline"
+        >
+          {t.auth.forgotLink}
+        </Link>
         <Button type="submit" size="lg" loading={submitting} className="mt-2 h-[52px]">
           {submitting ? t.auth.signingIn : t.auth.signInButton}
         </Button>
