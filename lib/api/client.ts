@@ -137,7 +137,8 @@ export function refreshTokens(): Promise<boolean> {
   return refreshInFlight;
 }
 
-export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+/** Sends the request, refreshing the access token once on a 401. */
+async function sendWithAuth(path: string, options: RequestOptions): Promise<Response> {
   const useAuth = options.auth ?? true;
   let response = await send(path, options, useAuth ? tokenStore.access : null);
 
@@ -151,6 +152,20 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   if (!response.ok) throw await parseError(response);
+  return response;
+}
+
+export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const response = await sendWithAuth(path, options);
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
+}
+
+/**
+ * Binary download (e.g. a ticket PDF). A plain <a href> cannot carry the
+ * Bearer token, so the file is fetched here and handed over as a Blob.
+ */
+export async function apiBlob(path: string, options: RequestOptions = {}): Promise<Blob> {
+  const response = await sendWithAuth(path, options);
+  return response.blob();
 }

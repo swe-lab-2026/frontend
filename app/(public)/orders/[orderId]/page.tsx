@@ -2,14 +2,16 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Alert, Badge, CheckIcon, LinkButton, PageLoader } from "@/components/ui";
-import { catalogApi, ordersApi } from "@/lib/api/endpoints";
+import { TicketCard } from "@/components/tickets/TicketCard";
+import { Alert, BackLink, Badge, CheckIcon, LinkButton, PageLoader } from "@/components/ui";
+import { catalogApi, ordersApi, ticketsApi } from "@/lib/api/endpoints";
 import type { Event, Order } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { formatDateTime } from "@/lib/datetime";
 import { errorMessage } from "@/lib/errors";
 import { fmt, useI18n } from "@/lib/i18n/I18nProvider";
 import { formatMoney } from "@/lib/registration";
+import { isOrderConfirmed, orderTone } from "@/lib/tickets";
 import { useApi } from "@/lib/useApi";
 
 export default function OrderPage() {
@@ -32,6 +34,13 @@ function OrderDetails({ orderId }: { orderId: string }) {
   const { data, error, reload } = useApi<[Order, Event]>(
     async () => {
       const order = await ordersApi.get(orderId);
+      // The backend attaches tickets only to PAID/CONFIRMED orders, so for a
+      // cancelled or refunded order read them from the user's ticket list to
+      // still show each ticket's CANCELLED/REFUNDED status.
+      if (order.tickets.length === 0 && !isOrderConfirmed(order.status) && order.status !== "PENDING") {
+        const all = await ticketsApi.list().catch(() => []);
+        order.tickets = all.filter((ticket) => ticket.order_id === order.id);
+      }
       return [order, await catalogApi.event(order.event_id)];
     },
     [orderId],
@@ -52,12 +61,15 @@ function OrderDetails({ orderId }: { orderId: string }) {
   const [order, event] = data;
   const money = (amount: string) => (Number(amount) === 0 ? t.tickets.free : formatMoney(amount, order.currency, intlLocale));
   const statusLabel = (t.order.status as Record<string, string>)[order.status] ?? order.status;
-  const paid = order.status === "PAID";
+  const paid = isOrderConfirmed(order.status);
   const pending = order.status === "PENDING";
+  // Cancelled / expired / refunded orders explain themselves in words, not just a badge colour.
+  const statusHelp = (t.order.statusHelp as Record<string, string>)[order.status];
   const place = [event.venue_name, event.city].filter(Boolean).join(", ");
 
   return (
-    <div className="mx-auto flex w-full max-w-[640px] flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-6">
+      <BackLink href="/orders">{t.orders.title}</BackLink>
       <title>{`${t.order.number} · ${event.title} — BiletFlow`}</title>
       <section className="flex flex-col items-center gap-3 rounded-[20px] bg-surface px-6 py-10 text-center">
         {paid && (
@@ -66,8 +78,15 @@ function OrderDetails({ orderId }: { orderId: string }) {
           </span>
         )}
         <h1 className="text-[28px] font-bold tracking-tight">
-          {paid ? t.order.confirmedTitle : pending ? t.order.pendingTitle : t.order.inactiveTitle}
+          {paid
+            ? t.order.confirmedTitle
+            : pending
+              ? t.order.pendingTitle
+              : order.status === "PARTIALLY_REFUNDED"
+                ? t.order.partialTitle
+                : t.order.inactiveTitle}
         </h1>
+        {statusHelp && <p className="max-w-[440px] text-[15px] leading-normal text-muted">{statusHelp}</p>}
         {paid && <p className="max-w-[440px] text-[15px] leading-normal text-muted">{t.order.confirmedText}</p>}
         {pending && order.expires_at && (
           <p className="text-[15px] text-muted">{fmt(t.order.pendingText, { date: formatDateTime(order.expires_at, event.timezone, intlLocale) })}</p>
@@ -78,9 +97,9 @@ function OrderDetails({ orderId }: { orderId: string }) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-col gap-0.5">
             <span className="text-[13px] text-muted">{t.order.number}</span>
-            <span className="font-mono text-sm">{order.id}</span>
+            <span className="font-mono text-sm">#{order.order_number}</span>
           </div>
-          <Badge tone={paid ? "success" : pending ? "warning" : "neutral"}>{statusLabel}</Badge>
+          <Badge tone={orderTone(order.status)}>{statusLabel}</Badge>
         </div>
 
         <div className="flex flex-col gap-1 border-t border-line-soft pt-5">
@@ -110,8 +129,21 @@ function OrderDetails({ orderId }: { orderId: string }) {
           </div>
         </div>
 
-        {paid && <Alert tone="info">{t.order.qrSoon}</Alert>}
       </section>
+
+      {/* Cancelled/expired orders with no tickets are already explained by statusHelp above. */}
+      {(order.tickets.length > 0 || paid || pending) && (
+        <section aria-labelledby="order-tickets" className="flex flex-col gap-3">
+          <h2 id="order-tickets" className="text-xl font-bold tracking-tight">
+            {t.ticket.heading}
+          </h2>
+          {order.tickets.length > 0 ? (
+            order.tickets.map((ticket) => <TicketCard key={ticket.public_id} ticket={ticket} />)
+          ) : (
+            <Alert tone="info">{paid ? t.ticket.noneYet : t.ticket.notIssued}</Alert>
+          )}
+        </section>
+      )}
 
       <div className="flex flex-wrap justify-center gap-3">
         <LinkButton variant="secondary" href={`/catalog/${event.id}`}>
