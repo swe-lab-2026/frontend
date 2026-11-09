@@ -53,3 +53,16 @@ export function ticketPdfFilename(publicId: string): string {
 export function ticketCount(order: Pick<Order, "items">): number {
   return order.items.reduce((sum, item) => sum + item.quantity, 0);
 }
+
+/**
+ * Whether the buyer may cancel this order from the web app. Cancelling only
+ * invalidates tickets; it does not refund money, so confirmed PAID orders are
+ * left to a refund flow (SRS 4.9: organizers cancel free registrations).
+ */
+export function canCancelOrder(
+  order: Pick<Order, "status" | "is_free" | "tickets">,
+): boolean {
+  if (order.tickets.some((ticket) => ticket.status === "CHECKED_IN")) return false;
+  if (order.status === "PENDING") return true;
+  return isOrderConfirmed(order.status) && order.is_free;
+}

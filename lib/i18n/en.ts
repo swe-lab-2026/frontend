@@ -78,6 +78,8 @@ const en = {
     price: "Enter a non-negative price with at most 2 decimals",
   },
   errors: {
+    TICKET_ALREADY_CHECKED_IN: "A ticket in this order was already used for entry, so it cannot be cancelled.",
+    ORDER_NOT_CANCELLABLE: "This order can no longer be cancelled.",
     INVALID_CREDENTIALS: "Wrong email or password.",
     EMAIL_NOT_VERIFIED: "Your email is not verified yet.",
     EMAIL_ALREADY_EXISTS: "An account with this email already exists.",
@@ -373,6 +375,10 @@ const en = {
       PARTIALLY_REFUNDED: "Some tickets in this order were refunded. Refunded tickets are no longer valid.",
       REFUNDED: "This order was refunded. Its tickets are no longer valid for entry.",
     },
+    cancel: "Cancel registration",
+    cancelPending: "Cancel order",
+    confirmCancel: "Cancel this registration? Your tickets will stop working. This cannot be undone.",
+    confirmCancelPending: "Cancel this order? The reserved tickets will be released.",
     status: {
       PENDING: "Awaiting payment",
       PAID: "Confirmed",
@@ -413,6 +419,10 @@ const en = {
     },
   },
   attendees: {
+    cancel: "Cancel",
+    cancelFor: "Cancel registration of {name}",
+    confirmCancel: "Cancel the registration of {name}? Their tickets will stop working and they cannot be restored.",
+    cancelled: "Registration #{number} cancelled. Its tickets are no longer valid.",
     tab: "Attendees",
     title: "Registered attendees",
     hint: "People with a confirmed registration. Unpaid checkouts are not shown.",
