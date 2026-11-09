@@ -62,6 +62,7 @@ export function AppHeader() {
 
   const nav = [
     { href: "/catalog", label: t.nav.catalog },
+    { href: "/orders", label: t.nav.orders },
     { href: "/events", label: t.nav.dashboard },
     { href: "/profile", label: t.nav.profile },
   ];
@@ -150,9 +151,18 @@ export function SiteHeader() {
               {t.nav.catalog}
             </Link>
             {status === "authenticated" && (
-              <Link href="/events" className="rounded-full px-4 py-2.5 text-[15px] font-medium text-ink-2 hover:bg-chip">
-                {t.nav.dashboard}
-              </Link>
+              <>
+                <Link
+                  href="/orders"
+                  aria-current={pathname.startsWith("/orders") ? "page" : undefined}
+                  className="rounded-full px-4 py-2.5 text-[15px] font-medium text-ink-2 hover:bg-chip aria-[current=page]:bg-chip aria-[current=page]:font-semibold aria-[current=page]:text-ink"
+                >
+                  {t.nav.orders}
+                </Link>
+                <Link href="/events" className="rounded-full px-4 py-2.5 text-[15px] font-medium text-ink-2 hover:bg-chip">
+                  {t.nav.dashboard}
+                </Link>
+              </>
             )}
           </nav>
         </div>

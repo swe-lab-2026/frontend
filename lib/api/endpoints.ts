@@ -1,4 +1,4 @@
-import { apiRequest } from "./client";
+import { apiBlob, apiRequest } from "./client";
 import type {
   Event,
   EventAdmin,
@@ -17,6 +17,7 @@ import type {
   RegisterRequest,
   RegisterResponse,
   ResendVerificationResponse,
+  Ticket,
   TicketType,
   TicketTypePayload,
   TokenResponse,
@@ -92,6 +93,15 @@ export const catalogApi = {
 export const ordersApi = {
   create: (body: OrderCreateRequest) => apiRequest<Order>("/orders", { method: "POST", body }),
   get: (id: string) => apiRequest<Order>(`/orders/${id}`),
+  /** The signed-in user's orders, newest first. The backend scopes by buyer. */
+  list: (limit = 200, offset = 0) => apiRequest<Order[]>("/orders", { query: { limit, offset } }),
+};
+
+export const ticketsApi = {
+  list: (limit = 500, offset = 0) => apiRequest<Ticket[]>("/tickets", { query: { limit, offset } }),
+  get: (publicId: string) => apiRequest<Ticket>(`/tickets/${publicId}`),
+  /** Read-only GET: downloading again returns the same ticket, never a new one. */
+  pdf: (publicId: string) => apiBlob(`/tickets/${publicId}/pdf`),
 };
 
 export const ticketTypesApi = {

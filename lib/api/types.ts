@@ -216,7 +216,47 @@ export type ApiErrorBody = {
   };
 };
 
-export type OrderStatus = "PENDING" | "PAID" | "EXPIRED" | "CANCELLED" | "REFUNDED" | string;
+export type OrderStatus =
+  | "PENDING"
+  | "PAID"
+  | "CONFIRMED"
+  | "EXPIRED"
+  | "CANCELLED"
+  | "PARTIALLY_REFUNDED"
+  | "REFUNDED"
+  | string;
+
+export type TicketStatus = "VALID" | "CHECKED_IN" | "CANCELLED" | "REFUNDED" | string;
+
+/** An issued admission ticket. Holds no payment data by design (SRS 4.7). */
+export type Ticket = {
+  ticket_id: string;
+  /** The identifier shown to people and printed on the PDF. */
+  public_id: string;
+  order_id: string;
+  order_number: number;
+  event_id: string;
+  event_title: string;
+  event_starts_at: string;
+  event_ends_at: string;
+  venue_name: string | null;
+  venue_address: string | null;
+  city: string | null;
+  timezone: string;
+  ticket_type_id: string;
+  ticket_type_name: string;
+  attendee_name: string | null;
+  attendee_email: string;
+  status: TicketStatus;
+  issued_at: string;
+  checked_in_at: string | null;
+  cancelled_at: string | null;
+  /** Signed string encoded into the QR code; the scanner app verifies it. */
+  qr_payload: string;
+  download_url: string;
+  /** Assigned seat, e.g. "Section A · Row 3 · Seat 12". Not sent by the API yet. */
+  seat_label?: string | null;
+};
 
 export type OrderCreateRequest = {
   event_id: string;
@@ -233,14 +273,23 @@ export type OrderItem = {
 
 export type Order = {
   id: string;
+  order_number: number;
   event_id: string;
   status: OrderStatus;
   currency: string;
   subtotal_amount: string;
+  discount_amount: string;
+  fee_amount: string;
   total_amount: string;
+  is_free: boolean;
   /** Set only for unpaid orders: when the inventory hold is released. */
   expires_at: string | null;
+  paid_at: string | null;
+  cancelled_at: string | null;
+  created_at: string;
   items: OrderItem[];
+  /** Issued tickets; empty until the order is confirmed. */
+  tickets: Ticket[];
 };
 
 export type EventAttendee = {
