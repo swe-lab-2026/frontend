@@ -1,9 +1,9 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { TicketCard } from "@/components/tickets/TicketCard";
-import { Alert, BackLink, Badge, CheckIcon, LinkButton, PageLoader } from "@/components/ui";
+import { Alert, BackLink, Badge, Button, CheckIcon, LinkButton, PageLoader } from "@/components/ui";
 import { catalogApi, ordersApi, ticketsApi } from "@/lib/api/endpoints";
 import type { Event, Order } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -11,7 +11,7 @@ import { formatDateTime } from "@/lib/datetime";
 import { errorMessage } from "@/lib/errors";
 import { fmt, useI18n } from "@/lib/i18n/I18nProvider";
 import { formatMoney } from "@/lib/registration";
-import { isOrderConfirmed, orderTone } from "@/lib/tickets";
+import { canCancelOrder, isOrderConfirmed, orderTone } from "@/lib/tickets";
 import { useApi } from "@/lib/useApi";
 
 export default function OrderPage() {
@@ -31,6 +31,8 @@ export default function OrderPage() {
 
 function OrderDetails({ orderId }: { orderId: string }) {
   const { t, intlLocale } = useI18n();
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<unknown>(null);
   const { data, error, reload } = useApi<[Order, Event]>(
     async () => {
       const order = await ordersApi.get(orderId);
@@ -59,6 +61,21 @@ function OrderDetails({ orderId }: { orderId: string }) {
   if (!data) return <PageLoader label={t.common.loading} />;
 
   const [order, event] = data;
+  const cancellable = canCancelOrder(order) && new Date(event.starts_at) > new Date();
+
+  async function handleCancel() {
+    if (!window.confirm(order.status === "PENDING" ? t.order.confirmCancelPending : t.order.confirmCancel)) return;
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      await ordersApi.cancel(order.id);
+      reload();
+    } catch (err) {
+      setCancelError(err);
+    } finally {
+      setCancelling(false);
+    }
+  }
   const money = (amount: string) => (Number(amount) === 0 ? t.tickets.free : formatMoney(amount, order.currency, intlLocale));
   const statusLabel = (t.order.status as Record<string, string>)[order.status] ?? order.status;
   const paid = isOrderConfirmed(order.status);
@@ -145,7 +162,14 @@ function OrderDetails({ orderId }: { orderId: string }) {
         </section>
       )}
 
+      {cancelError !== null && <Alert tone="error">{errorMessage(cancelError, t)}</Alert>}
+
       <div className="flex flex-wrap justify-center gap-3">
+        {cancellable && (
+          <Button variant="danger-outline" onClick={handleCancel} loading={cancelling}>
+            {order.status === "PENDING" ? t.order.cancelPending : t.order.cancel}
+          </Button>
+        )}
         <LinkButton variant="secondary" href={`/catalog/${event.id}`}>
           {t.order.viewEvent}
         </LinkButton>

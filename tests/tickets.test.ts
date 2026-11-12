@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  canCancelOrder,
   isOrderConfirmed,
   isTicketUsable,
   orderEventTitle,
@@ -49,5 +50,23 @@ describe("order helpers", () => {
   });
   it("names the PDF after the ticket ID", () => {
     expect(ticketPdfFilename("abc")).toBe("biletflow-ticket-abc.pdf");
+  });
+});
+
+describe("canCancelOrder", () => {
+  const ticket = (status: string) => ({ status }) as never;
+  it("allows free confirmed registrations and unpaid pending orders", () => {
+    expect(canCancelOrder({ status: "PAID", is_free: true, tickets: [ticket("VALID")] })).toBe(true);
+    expect(canCancelOrder({ status: "CONFIRMED", is_free: true, tickets: [] })).toBe(true);
+    expect(canCancelOrder({ status: "PENDING", is_free: false, tickets: [] })).toBe(true);
+  });
+  it("leaves paid orders to a refund flow", () => {
+    expect(canCancelOrder({ status: "PAID", is_free: false, tickets: [ticket("VALID")] })).toBe(false);
+  });
+  it("blocks orders with a checked-in ticket or a final status", () => {
+    expect(canCancelOrder({ status: "PAID", is_free: true, tickets: [ticket("CHECKED_IN")] })).toBe(false);
+    for (const status of ["CANCELLED", "EXPIRED", "REFUNDED"]) {
+      expect(canCancelOrder({ status, is_free: true, tickets: [] })).toBe(false);
+    }
   });
 });

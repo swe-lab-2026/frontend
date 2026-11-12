@@ -106,6 +106,8 @@ export const catalogApi = {
 export const ordersApi = {
   create: (body: OrderCreateRequest) => apiRequest<Order>("/orders", { method: "POST", body }),
   get: (id: string) => apiRequest<Order>(`/orders/${id}`),
+  /** Buyer or event organizer. Marks the tickets CANCELLED; no money is refunded. */
+  cancel: (id: string) => apiRequest<Order>(`/orders/${id}/cancel`, { method: "POST" }),
   /** The signed-in user's orders, newest first. The backend scopes by buyer. */
   list: (limit = 200, offset = 0) => apiRequest<Order[]>("/orders", { query: { limit, offset } }),
 };
