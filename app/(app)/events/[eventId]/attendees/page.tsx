@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Alert, Button, Card, CardHeader, Input, PageLoader } from "@/components/ui";
-import { eventsApi } from "@/lib/api/endpoints";
+import { eventsApi, ordersApi } from "@/lib/api/endpoints";
 import type { EventAttendee } from "@/lib/api/types";
 import { formatDateTime } from "@/lib/datetime";
 import { errorMessage } from "@/lib/errors";
@@ -17,6 +17,26 @@ export default function AttendeesPage() {
   // The backend caps one page at 500, which covers MVP-sized events.
   const { data: attendees, error, reload } = useApi<EventAttendee[]>(() => eventsApi.attendees(event.id), [event.id, version]);
   const [query, setQuery] = useState("");
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const eventStarted = new Date(event.starts_at) <= new Date();
+
+  // Free registrations only: cancelling does not refund, so paid orders need
+  // a refund flow instead (SRS 4.9).
+  async function cancelRegistration(a: EventAttendee) {
+    if (!window.confirm(fmt(t.attendees.confirmCancel, { name: a.full_name || a.email }))) return;
+    setCancellingId(a.order_id);
+    setNotice(null);
+    try {
+      await ordersApi.cancel(a.order_id);
+      setNotice({ tone: "success", text: fmt(t.attendees.cancelled, { number: a.order_number }) });
+      reload();
+    } catch (err) {
+      setNotice({ tone: "error", text: errorMessage(err, t) });
+    } finally {
+      setCancellingId(null);
+    }
+  }
 
   const needle = query.trim().toLowerCase();
   const visible = (attendees ?? []).filter(
@@ -37,6 +57,8 @@ export default function AttendeesPage() {
           </Button>
         }
       />
+
+      {notice && <Alert tone={notice.tone}>{notice.text}</Alert>}
 
       {error ? (
         <Alert tone="error">{errorMessage(error, t)}</Alert>
@@ -64,7 +86,7 @@ export default function AttendeesPage() {
             <p className="py-6 text-center text-[15px] text-muted">{t.attendees.noMatches}</p>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-line-soft">
-              <table className="w-full min-w-[760px] border-collapse text-sm">
+              <table className="w-full min-w-[860px] border-collapse text-sm">
                 <thead>
                   <tr className="bg-[#f7f8f9] text-left text-muted">
                     <th scope="col" className="px-4 py-3 font-semibold">{t.attendees.name}</th>
@@ -72,7 +94,10 @@ export default function AttendeesPage() {
                     <th scope="col" className="px-3 py-3 text-right font-semibold">{t.attendees.tickets}</th>
                     <th scope="col" className="px-3 py-3 text-right font-semibold">{t.attendees.total}</th>
                     <th scope="col" className="px-3 py-3 font-semibold">{t.attendees.order}</th>
-                    <th scope="col" className="px-4 py-3 font-semibold">{t.attendees.registered}</th>
+                    <th scope="col" className="px-3 py-3 font-semibold">{t.attendees.registered}</th>
+                    <th scope="col" className="px-4 py-3 text-right font-semibold">
+                      <span className="sr-only">{t.common.actions}</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -89,7 +114,21 @@ export default function AttendeesPage() {
                         {Number(a.total_amount) === 0 ? t.tickets.free : formatMoney(a.total_amount, a.currency, intlLocale)}
                       </td>
                       <td className="px-3 py-3.5 tabular-nums">#{a.order_number}</td>
-                      <td className="whitespace-nowrap px-4 py-3.5 text-muted">{formatDateTime(a.registered_at, event.timezone, intlLocale)}</td>
+                      <td className="whitespace-nowrap px-3 py-3.5 text-muted">{formatDateTime(a.registered_at, event.timezone, intlLocale)}</td>
+                      <td className="px-4 py-2 text-right">
+                        {Number(a.total_amount) === 0 && !eventStarted && (
+                          <Button
+                            variant="ghost"
+                            className="text-danger-ink"
+                            loading={cancellingId === a.order_id}
+                            disabled={cancellingId !== null}
+                            onClick={() => cancelRegistration(a)}
+                            aria-label={fmt(t.attendees.cancelFor, { name: a.full_name || a.email })}
+                          >
+                            {t.attendees.cancel}
+                          </Button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
