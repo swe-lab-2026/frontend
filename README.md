@@ -41,6 +41,10 @@ app/
   (app)/events/[eventId]                 SCRUM-20: overview (stats, publish checklist, event admins)
   (app)/events/[eventId]/edit            SCRUM-20: edit details
   (app)/events/[eventId]/tickets         SCRUM-20: ticket types + inventory
+  (app)/events/[eventId]/campaigns       SCRUM-23: promo campaigns, Campaign QR, performance
+  (public)/catalog/[eventId]             SCRUM-21: public event page, ticket and promo selection
+  (public)/orders/[orderId]              SCRUM-21: price review, reservation timer, demo payment
+  (public)/campaigns/[token]             SCRUM-23: Campaign QR target, forwards to the event page
 components/        ui.tsx (buttons, fields, cards…), chrome.tsx (header, logo, language), events/*
 lib/api/           types.ts (mirrors backend schemas), client.ts (fetch + token refresh), endpoints.ts
 lib/i18n/          ru (default), kk, en dictionaries — en.ts is the reference type
@@ -61,6 +65,13 @@ lib/datetime.ts    event times are entered in the venue's IANA timezone and sent
 
 ## Known gaps (backend not ready yet)
 
-- Password reset, image upload, attendee list, paid-sales activation, analytics.
+- Image upload; paid-sales activation screen. No endpoint marks an organizer VERIFIED or a
+  payout account ACTIVE, so activation also needs a manual database change.
+- Attendees cannot see remaining stock or whether paid sales are active before ordering:
+  the event page learns it from the server's rejection and then blocks that ticket.
+- Checkout has no attendee fields in the API; tickets are issued to the signed-in account.
+- Organizer analytics and event history have no screens yet.
+- Support cases and platform administration have no screens yet.
+- Organizers can no longer cancel a free registration: the backend answers 403.
 - No `GET` for the payout account, so the profile page only shows it after saving.
 - The event list has no per-event sales numbers (would need one inventory call per event).

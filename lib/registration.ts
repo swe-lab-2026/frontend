@@ -13,17 +13,50 @@ export function registrationWindow(event: Pick<Event, "status" | "registration_s
   return "open";
 }
 
-/**
- * "paid" is not orderable yet: a paid order would only hold seats for 10
- * minutes, and the payment step does not exist in the MVP.
- */
-export type TicketAvailability = "available" | "paid" | "notStarted" | "ended";
+export type TicketAvailability = "available" | "notStarted" | "ended" | "soldOut" | "paidInactive";
 
-export function ticketAvailability(tt: Pick<TicketType, "is_free" | "sales_starts_at" | "sales_ends_at">, now: Date): TicketAvailability {
-  if (!tt.is_free) return "paid";
+/**
+ * What the buyer can be told before ordering. Public endpoints expose neither
+ * remaining stock nor paid-sales activation, so `left` and `paidInactive` are
+ * only known after the server has rejected an attempt; the server re-checks
+ * everything under a lock either way.
+ */
+export function ticketAvailability(
+  tt: Pick<TicketType, "is_free" | "sales_starts_at" | "sales_ends_at" | "min_per_order">,
+  now: Date,
+  known: { left?: number; paidInactive?: boolean } = {},
+): TicketAvailability {
   if (tt.sales_starts_at && now < new Date(tt.sales_starts_at)) return "notStarted";
   if (tt.sales_ends_at && now >= new Date(tt.sales_ends_at)) return "ended";
+  if (!tt.is_free && known.paidInactive) return "paidInactive";
+  if (known.left !== undefined && known.left < Math.max(1, tt.min_per_order)) return "soldOut";
   return "available";
+}
+
+/** Largest quantity that can be requested for one ticket type. */
+export function maxQuantity(tt: Pick<TicketType, "max_per_order" | "capacity">, left?: number): number {
+  return Math.min(tt.max_per_order, tt.capacity, left ?? Infinity);
+}
+
+/** Zero, or within the per-order limits. Checked again right before submitting. */
+export function isQuantityValid(tt: Pick<TicketType, "min_per_order" | "max_per_order" | "capacity">, quantity: number, left?: number): boolean {
+  if (quantity === 0) return true;
+  return Number.isInteger(quantity) && quantity >= Math.max(1, tt.min_per_order) && quantity <= maxQuantity(tt, left);
+}
+
+// A selection travels in the URL (sign-in round trip, retry after a failed
+// checkout) as "id:2,id:1". It is untrusted input: callers clamp it.
+export function encodeSelection(items: { ticket_type_id: string; quantity: number }[]): string {
+  return items.map((item) => `${item.ticket_type_id}:${item.quantity}`).join(",");
+}
+
+export function decodeSelection(value: string | null): Record<string, number> {
+  const result: Record<string, number> = {};
+  for (const part of (value ?? "").split(",")) {
+    const match = /^([0-9a-f-]{36}):(\d{1,3})$/i.exec(part);
+    if (match) result[match[1]] = Number(match[2]);
+  }
+  return result;
 }
 
 /**
@@ -37,13 +70,25 @@ export function stepQuantity(current: number, delta: 1 | -1, min: number, max: n
   return current <= low ? 0 : current - 1;
 }
 
-export function buildOrder(eventId: string, quantities: Record<string, number>): OrderCreateRequest {
+export type Promo = { code: string } | { campaign_token: string };
+
+export function buildOrder(eventId: string, quantities: Record<string, number>, promo: Promo | null = null): OrderCreateRequest {
   return {
     event_id: eventId,
     items: Object.entries(quantities)
       .filter(([, quantity]) => quantity > 0)
       .map(([ticket_type_id, quantity]) => ({ ticket_type_id, quantity })),
+    ...(promo && ("code" in promo ? { promo_code: promo.code } : { campaign_token: promo.campaign_token })),
   };
+}
+
+/** Event page link that restores a ticket selection and promotion. */
+export function eventHref(eventId: string, items: { ticket_type_id: string; quantity: number }[] = [], promo: Promo | null = null): string {
+  const params = new URLSearchParams();
+  if (items.length > 0) params.set("items", encodeSelection(items));
+  if (promo) params.set("code" in promo ? "promo" : "campaign", "code" in promo ? promo.code : promo.campaign_token);
+  const query = params.toString();
+  return `/catalog/${eventId}${query ? `?${query}` : ""}`;
 }
 
 export function formatMoney(amount: string | number, currency: string, intlLocale: string): string {

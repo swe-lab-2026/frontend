@@ -126,6 +126,8 @@ export type Event = Omit<EventPayload, "images" | "visibility"> & {
   images: EventImage[];
   created_at: string;
   updated_at: string;
+  /** Suspended by the platform: hidden from the public and not on sale. */
+  is_suspended: boolean;
 };
 
 export type EventSummary = {
@@ -141,6 +143,7 @@ export type EventSummary = {
   capacity: number | null;
   created_at: string;
   updated_at: string;
+  is_suspended: boolean;
 };
 
 export type TicketTypePayload = {
@@ -258,9 +261,14 @@ export type Ticket = {
   seat_label?: string | null;
 };
 
+export type OrderItemRequest = { ticket_type_id: string; quantity: number };
+
+/** At most one of `promo_code` / `campaign_token`; the server prices the order. */
 export type OrderCreateRequest = {
   event_id: string;
-  items: { ticket_type_id: string; quantity: number }[];
+  items: OrderItemRequest[];
+  promo_code?: string;
+  campaign_token?: string;
 };
 
 export type OrderItem = {
@@ -268,6 +276,8 @@ export type OrderItem = {
   ticket_type_name: string;
   quantity: number;
   unit_price: string;
+  /** Sum of the line after discounts (units can be discounted unevenly). */
+  subtotal: string;
   final_price: string;
 };
 
@@ -282,6 +292,9 @@ export type Order = {
   fee_amount: string;
   total_amount: string;
   is_free: boolean;
+  campaign_id: string | null;
+  /** The code as it was when the order was placed. */
+  promo_code: string | null;
   /** Set only for unpaid orders: when the inventory hold is released. */
   expires_at: string | null;
   paid_at: string | null;
@@ -304,4 +317,105 @@ export type EventAttendee = {
   currency: string;
   total_amount: string;
   ticket_count: number;
+};
+
+// ---------- Simulated payments ----------
+
+export type PaymentOutcome = "success" | "failed" | "abandoned";
+
+export type PaymentSimulation = {
+  payment_id: string;
+  order_id: string;
+  amount: string;
+  currency: string;
+  status: string;
+  is_simulated: boolean;
+};
+
+export type Payment = {
+  id: string;
+  order_id: string;
+  amount: string;
+  currency: string;
+  status: "PENDING" | "SUCCEEDED" | "FAILED" | "CANCELLED" | "REFUNDED" | string;
+  is_simulated: boolean;
+  failure_code: string | null;
+};
+
+// ---------- Promo campaigns ----------
+
+export type DiscountType = "PERCENT" | "FIXED";
+export type CampaignStatus = "ACTIVE" | "SCHEDULED" | "EXPIRED" | "DISABLED" | "EXHAUSTED";
+
+export type CampaignPayload = {
+  name: string;
+  code: string;
+  discount_type: DiscountType;
+  discount_value: string;
+  starts_at: string | null;
+  expires_at: string | null;
+  redemption_limit: number | null;
+  /** Empty = every ticket type of the event. */
+  ticket_type_ids: string[];
+};
+
+export type Campaign = Omit<CampaignPayload, "code"> & {
+  id: string;
+  event_id: string;
+  code: string | null;
+  redemption_count: number;
+  remaining_redemptions: number | null;
+  is_active: boolean;
+  effective_status: CampaignStatus;
+  campaign_token: string;
+  qr_path: string;
+  /** Null until the backend's PUBLIC_WEB_BASE_URL is configured. */
+  qr_url: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CampaignAnalytics = {
+  campaign_id: string;
+  promo_code: string | null;
+  currency: string;
+  redemption_limit: number | null;
+  redemption_count: number;
+  reserved_redemptions: number;
+  successful_redemptions: number;
+  released_redemptions: number;
+  discount_total: string;
+  attributed_order_count: number;
+  attributed_revenue: string;
+  gross_attributed_order_count: number;
+  gross_attributed_revenue: string;
+  reversed_order_count: number;
+  reversed_revenue: string;
+};
+
+/** Public resolution of a scanned Campaign QR; carries no code or counts. */
+export type CampaignResolution = {
+  event: { id: string; title: string };
+  promotion: {
+    campaign_token: string;
+    name: string;
+    discount_type: DiscountType;
+    discount_value: string;
+    expires_at: string | null;
+    applies_to_all_ticket_types: boolean;
+    ticket_type_ids: string[];
+  };
+};
+
+/** Server-calculated price preview; never consumes a redemption. */
+export type PromoQuote = {
+  campaign_id: string;
+  code: string | null;
+  discount_type: DiscountType;
+  discount_value: string;
+  currency: string;
+  subtotal: string;
+  discount_amount: string;
+  fee_amount: string;
+  final_total: string;
 };

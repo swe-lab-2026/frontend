@@ -6,6 +6,7 @@ import { Alert, Badge, Button } from "@/components/ui";
 import { ticketsApi } from "@/lib/api/endpoints";
 import type { Ticket } from "@/lib/api/types";
 import { formatDateTime } from "@/lib/datetime";
+import { saveBlob } from "@/lib/download";
 import { errorMessage } from "@/lib/errors";
 import { fmt, useI18n } from "@/lib/i18n/I18nProvider";
 import { isTicketUsable, ticketPdfFilename, ticketTone } from "@/lib/tickets";
@@ -36,17 +37,6 @@ function TicketQr({ payload, label }: { payload: string; label: string }) {
       )}
     </div>
   );
-}
-
-function saveBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 /**

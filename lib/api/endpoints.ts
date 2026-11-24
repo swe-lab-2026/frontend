@@ -1,5 +1,9 @@
 import { apiBlob, apiRequest } from "./client";
 import type {
+  Campaign,
+  CampaignAnalytics,
+  CampaignPayload,
+  CampaignResolution,
   Event,
   EventAdmin,
   EventAttendee,
@@ -9,11 +13,16 @@ import type {
   EventSummary,
   Order,
   OrderCreateRequest,
+  OrderItemRequest,
   OrganizerProfile,
   OrganizerProfileCreate,
   OrganizerProfileUpdate,
+  Payment,
+  PaymentOutcome,
+  PaymentSimulation,
   PayoutAccount,
   PayoutAccountCreate,
+  PromoQuote,
   RegisterRequest,
   RegisterResponse,
   ResendVerificationResponse,
@@ -95,6 +104,20 @@ export const eventsApi = {
     apiRequest<EventAttendee[]>(`/events/${id}/attendees`, { query: { limit, offset } }),
 };
 
+export const campaignsApi = {
+  list: (eventId: string) => apiRequest<Campaign[]>(`/events/${eventId}/campaigns`),
+  create: (eventId: string, body: CampaignPayload) =>
+    apiRequest<Campaign>(`/events/${eventId}/campaigns`, { method: "POST", body }),
+  setActive: (eventId: string, id: string, isActive: boolean) =>
+    apiRequest<Campaign>(`/events/${eventId}/campaigns/${id}`, { method: "PATCH", body: { is_active: isActive } }),
+  analytics: (eventId: string) => apiRequest<CampaignAnalytics[]>(`/events/${eventId}/campaigns/analytics`),
+  /** Public: what a scanned Campaign QR points at. */
+  resolve: (token: string) => apiRequest<CampaignResolution>(`/campaigns/qr/${encodeURIComponent(token)}`),
+  /** Server-side validation and price preview; needs a signed-in user. */
+  quote: (eventId: string, items: OrderItemRequest[], promo: { code: string } | { campaign_token: string }) =>
+    apiRequest<PromoQuote>("/campaigns/validate", { method: "POST", body: { event_id: eventId, items, ...promo } }),
+};
+
 // Attendee-facing reads. The token is still sent when present (the backend
 // treats it as optional), so an organizer previewing their own event works too.
 export const catalogApi = {
@@ -106,7 +129,11 @@ export const catalogApi = {
 export const ordersApi = {
   create: (body: OrderCreateRequest) => apiRequest<Order>("/orders", { method: "POST", body }),
   get: (id: string) => apiRequest<Order>(`/orders/${id}`),
-  /** Buyer or event organizer. Marks the tickets CANCELLED; no money is refunded. */
+  /** Demo payment: no real provider is contacted. Repeating returns the same payment. */
+  startPayment: (id: string) => apiRequest<PaymentSimulation>(`/orders/${id}/payments/simulate`, { method: "POST" }),
+  resolvePayment: (paymentId: string, outcome: PaymentOutcome) =>
+    apiRequest<Payment>(`/orders/payments/${paymentId}/simulate-result`, { method: "POST", body: { outcome } }),
+  /** Marks the tickets CANCELLED. The backend allows this for the buyer only. */
   cancel: (id: string) => apiRequest<Order>(`/orders/${id}/cancel`, { method: "POST" }),
   /** The signed-in user's orders, newest first. The backend scopes by buyer. */
   list: (limit = 200, offset = 0) => apiRequest<Order[]>("/orders", { query: { limit, offset } }),

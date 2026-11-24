@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { buildOrder, registrationWindow, safeNext, stepQuantity, ticketAvailability } from "@/lib/registration";
+import {
+  buildOrder,
+  decodeSelection,
+  encodeSelection,
+  eventHref,
+  isQuantityValid,
+  maxQuantity,
+  registrationWindow,
+  safeNext,
+  stepQuantity,
+  ticketAvailability,
+} from "@/lib/registration";
 
 const NOW = new Date("2026-11-01T12:00:00+05:00");
 const PAST = "2026-10-01T00:00:00+05:00";
@@ -20,10 +31,19 @@ describe("registrationWindow", () => {
 });
 
 describe("ticketAvailability", () => {
-  const tt = (over: object) => ({ is_free: true, sales_starts_at: null, sales_ends_at: null, ...over });
+  const tt = (over: object) => ({ is_free: true, sales_starts_at: null, sales_ends_at: null, min_per_order: 1, ...over });
 
   it("offers free tickets", () => expect(ticketAvailability(tt({}), NOW)).toBe("available"));
-  it("does not offer paid tickets yet", () => expect(ticketAvailability(tt({ is_free: false }), NOW)).toBe("paid"));
+  it("offers paid tickets", () => expect(ticketAvailability(tt({ is_free: false }), NOW)).toBe("available"));
+  it("stops offering paid tickets once the server says sales are inactive", () => {
+    expect(ticketAvailability(tt({ is_free: false }), NOW, { paidInactive: true })).toBe("paidInactive");
+    expect(ticketAvailability(tt({}), NOW, { paidInactive: true })).toBe("available");
+  });
+  it("is sold out when nothing is left, or less than the minimum order", () => {
+    expect(ticketAvailability(tt({}), NOW, { left: 0 })).toBe("soldOut");
+    expect(ticketAvailability(tt({ min_per_order: 3 }), NOW, { left: 2 })).toBe("soldOut");
+    expect(ticketAvailability(tt({ min_per_order: 2 }), NOW, { left: 2 })).toBe("available");
+  });
   it("respects the sales start", () => expect(ticketAvailability(tt({ sales_starts_at: FUTURE }), NOW)).toBe("notStarted"));
   it("respects the sales end", () => expect(ticketAvailability(tt({ sales_ends_at: PAST }), NOW)).toBe("ended"));
 });
@@ -50,6 +70,48 @@ describe("buildOrder", () => {
         { ticket_type_id: "c", quantity: 1 },
       ],
     }));
+});
+
+describe("buildOrder with a promotion", () => {
+  it("sends a typed code or a campaign token, never both and never an amount", () => {
+    expect(buildOrder("e1", { a: 1 }, { code: "SPRING10" })).toEqual({ event_id: "e1", items: [{ ticket_type_id: "a", quantity: 1 }], promo_code: "SPRING10" });
+    expect(buildOrder("e1", { a: 1 }, { campaign_token: "tok" })).toEqual({ event_id: "e1", items: [{ ticket_type_id: "a", quantity: 1 }], campaign_token: "tok" });
+  });
+});
+
+describe("quantity limits", () => {
+  const tt = { min_per_order: 2, max_per_order: 5, capacity: 4 };
+  it("caps by per-order limit, capacity and known stock", () => {
+    expect(maxQuantity(tt)).toBe(4);
+    expect(maxQuantity(tt, 3)).toBe(3);
+    expect(maxQuantity({ max_per_order: 5, capacity: 100 })).toBe(5);
+  });
+  it.each([
+    [0, undefined, true],
+    [1, undefined, false],
+    [2, undefined, true],
+    [4, undefined, true],
+    [5, undefined, false],
+    [4, 3, false],
+    [2.5, undefined, false],
+  ])("quantity %s with stock %s -> %s", (quantity, left, ok) => expect(isQuantityValid(tt, quantity, left)).toBe(ok));
+});
+
+describe("selection in the URL", () => {
+  const A = "11111111-1111-4111-8111-111111111111";
+  const B = "22222222-2222-4222-8222-222222222222";
+  it("round-trips", () => {
+    const items = [{ ticket_type_id: A, quantity: 2 }, { ticket_type_id: B, quantity: 1 }];
+    expect(decodeSelection(encodeSelection(items))).toEqual({ [A]: 2, [B]: 1 });
+  });
+  it.each([null, "", "x:1", `${A}:-1`, `${A}:1e3`, `${A}`, "__proto__:1"])("ignores %s", (value) => expect(decodeSelection(value)).toEqual({}));
+  it("builds an event link with the promotion", () => {
+    expect(eventHref("e1")).toBe("/catalog/e1");
+    expect(eventHref("e1", [], { code: "A B" })).toBe("/catalog/e1?promo=A+B");
+    expect(eventHref("e1", [{ ticket_type_id: A, quantity: 2 }], { campaign_token: "tok" })).toBe(`/catalog/e1?items=${A}%3A2&campaign=tok`);
+    // Must survive the sign-in round trip.
+    expect(safeNext(eventHref("e1", [], { campaign_token: "tok" }))).toBe("/catalog/e1?campaign=tok");
+  });
 });
 
 describe("safeNext", () => {

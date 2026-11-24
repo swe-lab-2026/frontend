@@ -72,6 +72,7 @@ export default function EventLayout({ children }: LayoutProps<"/">) {
     { href: `${base}/edit`, label: t.event.tabs.details },
     { href: `${base}/tickets`, label: t.event.tabs.tickets },
     { href: `${base}/attendees`, label: t.attendees.tab },
+    { href: `${base}/campaigns`, label: t.campaigns.tab },
   ];
   const place = [event.venue_name, event.city].filter(Boolean).join(", ");
   const cover = event.images[0];
