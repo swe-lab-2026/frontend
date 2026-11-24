@@ -419,3 +419,81 @@ export type PromoQuote = {
   fee_amount: string;
   final_total: string;
 };
+
+// ---------- Organizer analytics and history ----------
+
+export type Page<T> = { items: T[]; total: number; limit: number; offset: number };
+
+/** Realized sales for the period in one currency; currencies are never mixed. */
+export type CurrencySales = {
+  currency: string;
+  orders: number;
+  tickets_sold: number;
+  gross_ticket_sales: string;
+  discounts: string;
+  ticket_revenue: string;
+  /** Null with a ticket type filter: fees belong to whole orders. */
+  fees: string | null;
+  gross_revenue: string;
+  refund_count: number;
+  refunds: string;
+  net_revenue: string;
+};
+
+export type TicketTypeMetrics = {
+  ticket_type_id: string;
+  name: string;
+  currency: string;
+  is_hidden: boolean;
+  capacity: number;
+  sold_tickets: number;
+  reserved_tickets: number;
+  remaining_tickets: number;
+  checked_in: number;
+  period_tickets_sold: number;
+  period_revenue: string;
+};
+
+export type CampaignMetrics = {
+  campaign_id: string;
+  name: string;
+  promo_code: string | null;
+  reserved_redemptions: number;
+  successful_redemptions: number;
+  sales: { currency: string; orders: number; tickets_sold: number; reversed_orders: number; discounts: string; revenue: string }[];
+};
+
+/** Capacity and attendance are current snapshots; sales follow the date range. */
+export type EventAnalytics = {
+  capacity: { total_capacity: number; sold_tickets: number; reserved_tickets: number; remaining_tickets: number };
+  attendance: { checked_in: number; eligible_tickets: number; attendance_rate: number | null; cancelled_tickets: number; refunded_tickets: number };
+  sales: CurrencySales[];
+  ticket_types: TicketTypeMetrics[];
+  campaigns: CampaignMetrics[];
+};
+
+export type TimelineEntry = {
+  id: number;
+  timestamp: string;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  actor: { user_id: string | null; type: string; display_name: string | null };
+  /** English sentence from the server, e.g. "Payment changed from PENDING to SUCCEEDED". */
+  description: string;
+};
+
+/** Raw audit row; only used for the old and new values of a change. */
+export type AuditEntry = {
+  id: number;
+  timestamp: string;
+  actor_id: string | null;
+  actor_type: "CUSTOMER" | "ORGANIZER" | "PLATFORM_ADMIN" | "USER" | "SYSTEM" | string;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  event_id: string | null;
+  metadata: Record<string, unknown> | null;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+};

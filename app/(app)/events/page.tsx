@@ -4,15 +4,16 @@ import Link from "next/link";
 import { useState } from "react";
 import { Alert, LinkButton, PageLoader, PlusIcon, StatusBadge } from "@/components/ui";
 import { eventsApi } from "@/lib/api/endpoints";
-import type { EventStatus, EventSummary } from "@/lib/api/types";
+import type { EventSummary } from "@/lib/api/types";
 import { dateParts } from "@/lib/datetime";
 import { errorMessage } from "@/lib/errors";
+import { EVENT_PHASES, eventPhase, type EventPhase } from "@/lib/history";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import { useApi } from "@/lib/useApi";
 import { useOrganizerProfile } from "@/lib/useOrganizerProfile";
 
-type Filter = "ALL" | EventStatus;
-const FILTERS: Filter[] = ["ALL", "DRAFT", "PUBLISHED", "UNPUBLISHED", "CANCELLED", "COMPLETED"];
+type Filter = "ALL" | EventPhase;
+const FILTERS: Filter[] = ["ALL", ...EVENT_PHASES];
 
 export default function EventsPage() {
   const { t, intlLocale } = useI18n();
@@ -21,8 +22,10 @@ export default function EventsPage() {
   const events = data ?? null;
   const [filter, setFilter] = useState<Filter>("ALL");
 
-  const visible = (events ?? []).filter((e) => filter === "ALL" || e.status === filter);
-  const count = (f: Filter) => (events ?? []).filter((e) => f === "ALL" || e.status === f).length;
+  const [now] = useState(() => new Date());
+  const inFilter = (f: Filter) => (events ?? []).filter((e) => f === "ALL" || eventPhase(e, now) === f);
+  const visible = inFilter(filter);
+  const count = (f: Filter) => inFilter(f).length;
   const needsProfile = !profileLoading && profile === null;
 
   return (
@@ -82,7 +85,7 @@ export default function EventsPage() {
                     active ? "border-ink bg-ink text-white" : "border-line bg-surface text-ink-2 hover:bg-chip"
                   }`}
                 >
-                  {f === "ALL" ? t.dashboard.filterAll : t.status[f]} <span className="opacity-70">{count(f)}</span>
+                  {f === "ALL" ? t.dashboard.filterAll : t.dashboard.phases[f]} <span className="opacity-70">{count(f)}</span>
                 </button>
               );
             })}

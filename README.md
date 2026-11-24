@@ -42,6 +42,8 @@ app/
   (app)/events/[eventId]/edit            SCRUM-20: edit details
   (app)/events/[eventId]/tickets         SCRUM-20: ticket types + inventory
   (app)/events/[eventId]/campaigns       SCRUM-23: promo campaigns, Campaign QR, performance
+  (app)/events/[eventId]/analytics       SCRUM-24: KPIs, revenue, sales over time, attendance, campaigns
+  (app)/events/[eventId]/history         SCRUM-24: activity timeline
   (public)/catalog/[eventId]             SCRUM-21: public event page, ticket and promo selection
   (public)/orders/[orderId]              SCRUM-21: price review, reservation timer, demo payment
   (public)/campaigns/[token]             SCRUM-23: Campaign QR target, forwards to the event page
@@ -70,7 +72,7 @@ lib/datetime.ts    event times are entered in the venue's IANA timezone and sent
 - Attendees cannot see remaining stock or whether paid sales are active before ordering:
   the event page learns it from the server's rejection and then blocks that ticket.
 - Checkout has no attendee fields in the API; tickets are issued to the signed-in account.
-- Organizer analytics and event history have no screens yet.
+- Analytics has no time series: the sales chart sends one request per bar (at most 31).
 - Support cases and platform administration have no screens yet.
 - Organizers can no longer cancel a free registration: the backend answers 403.
 - No `GET` for the payout account, so the profile page only shows it after saving.

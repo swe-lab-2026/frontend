@@ -1,11 +1,13 @@
 import { apiBlob, apiRequest } from "./client";
 import type {
+  AuditEntry,
   Campaign,
   CampaignAnalytics,
   CampaignPayload,
   CampaignResolution,
   Event,
   EventAdmin,
+  EventAnalytics,
   EventAttendee,
   EventInventory,
   EventPayload,
@@ -17,6 +19,7 @@ import type {
   OrganizerProfile,
   OrganizerProfileCreate,
   OrganizerProfileUpdate,
+  Page,
   Payment,
   PaymentOutcome,
   PaymentSimulation,
@@ -29,6 +32,7 @@ import type {
   Ticket,
   TicketType,
   TicketTypePayload,
+  TimelineEntry,
   TokenResponse,
   User,
 } from "./types";
@@ -102,6 +106,13 @@ export const eventsApi = {
   inventory: (id: string) => apiRequest<EventInventory>(`/events/${id}/inventory`),
   attendees: (id: string, limit = 500, offset = 0) =>
     apiRequest<EventAttendee[]>(`/events/${id}/attendees`, { query: { limit, offset } }),
+  /** `start` inclusive, `end` exclusive, both with a UTC offset. */
+  analytics: (id: string, query: { start?: string; end?: string; ticket_type_id?: string } = {}) =>
+    apiRequest<EventAnalytics>(`/events/${id}/analytics`, { query }),
+  /** Newest first. An `action` ending in "." is a prefix. */
+  timeline: (id: string, query: { action?: string[]; start?: string; end?: string; limit?: number; offset?: number }) =>
+    apiRequest<Page<TimelineEntry>>(`/events/${id}/timeline`, { query }),
+  auditLog: (id: string, action: string) => apiRequest<AuditEntry[]>(`/events/${id}/audit-log`, { query: { action, limit: 200 } }),
 };
 
 export const campaignsApi = {
