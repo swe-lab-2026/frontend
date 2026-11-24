@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { Alert, Button, Card, CardHeader, Field, Input, PageLoader, Select } from "@/components/ui";
 import { campaignsApi, eventsApi, ticketTypesApi } from "@/lib/api/endpoints";
@@ -106,7 +107,7 @@ export default function HistoryPage() {
   const details = (entry: TimelineEntry): string | null => {
     const status = statusChange(entry);
     if (status) {
-      const labels = t.history.paymentStatus as Record<string, string>;
+      const labels = (entry.entity_type === "support_case" ? t.support.status : t.history.paymentStatus) as Record<string, string>;
       return status.map((value) => labels[value] ?? value).join(" → ");
     }
     const fieldName = (key: string) => (t.history.fields as Record<string, string>)[key] ?? key;
@@ -175,7 +176,11 @@ export default function HistoryPage() {
                     </span>
                     <span className="break-words text-sm text-ink-2">
                       {actor(entry)} ·{" "}
-                      {entity(entry)}
+                      {entry.entity_type === "support_case" && entry.entity_id ? (
+                        <Link href={`/support/${entry.entity_id}`} className="font-semibold text-brand-ink hover:underline">{entity(entry)}</Link>
+                      ) : (
+                        entity(entry)
+                      )}
                     </span>
                     {extra && <span className="text-[13px] text-muted">{extra}</span>}
                   </div>

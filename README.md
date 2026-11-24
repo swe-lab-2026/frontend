@@ -44,6 +44,9 @@ app/
   (app)/events/[eventId]/campaigns       SCRUM-23: promo campaigns, Campaign QR, performance
   (app)/events/[eventId]/analytics       SCRUM-24: KPIs, revenue, sales over time, attendance, campaigns
   (app)/events/[eventId]/history         SCRUM-24: activity timeline
+  (app)/events/[eventId]/support         SCRUM-25: attendee requests about the event
+  (app)/admin/[section]                  SCRUM-25: platform admin portal, CSV export
+  (public)/support                       SCRUM-25: cases, new case with context, polled thread
   (public)/catalog/[eventId]             SCRUM-21: public event page, ticket and promo selection
   (public)/orders/[orderId]              SCRUM-21: price review, reservation timer, demo payment
   (public)/campaigns/[token]             SCRUM-23: Campaign QR target, forwards to the event page
@@ -73,7 +76,11 @@ lib/datetime.ts    event times are entered in the venue's IANA timezone and sent
   the event page learns it from the server's rejection and then blocks that ticket.
 - Checkout has no attendee fields in the API; tickets are issued to the signed-in account.
 - Analytics has no time series: the sales chart sends one request per bar (at most 31).
-- Support cases and platform administration have no screens yet.
+- CSV export is built in the browser from the admin lists (at most 5000 rows).
+- No endpoint makes a user a PLATFORM_ADMIN; the first admin is a database change.
+- Campaigns are listed per event only, so the admin picks an event first.
+- A support case carries the internal ticket id, so staff see a short reference.
+- In-app notifications (`/users/me/notifications`) are not shown yet.
 - Organizers can no longer cancel a free registration: the backend answers 403.
 - No `GET` for the payout account, so the profile page only shows it after saving.
 - The event list has no per-event sales numbers (would need one inventory call per event).

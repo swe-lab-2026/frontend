@@ -250,6 +250,11 @@ function EventPage() {
               <p className="whitespace-pre-line text-[15px] leading-relaxed text-ink-2">{event.refund_policy}</p>
             </section>
           )}
+          {!isOwner && (
+            <Link href={`/support/new?event=${event.id}`} className="w-fit text-sm font-semibold text-brand-ink hover:underline">
+              {t.support.askOrganizer}
+            </Link>
+          )}
         </article>
 
         <aside aria-labelledby="tickets-h" className="flex flex-col gap-5 rounded-[20px] bg-surface p-6 lg:sticky lg:top-6">

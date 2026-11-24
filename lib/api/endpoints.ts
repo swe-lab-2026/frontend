@@ -1,5 +1,14 @@
 import { apiBlob, apiRequest } from "./client";
 import type {
+  AdminAction,
+  AdminActivation,
+  AdminEvent,
+  AdminEventAction,
+  AdminFailure,
+  AdminOrder,
+  AdminPayment,
+  AdminRefund,
+  AdminUser,
   AuditEntry,
   Campaign,
   CampaignAnalytics,
@@ -29,6 +38,12 @@ import type {
   RegisterRequest,
   RegisterResponse,
   ResendVerificationResponse,
+  SupportAssignable,
+  SupportCase,
+  SupportCaseCreate,
+  SupportMessage,
+  SupportMessagePage,
+  SupportStatus,
   Ticket,
   TicketType,
   TicketTypePayload,
@@ -174,4 +189,49 @@ export const eventAdminsApi = {
     apiRequest<EventAdmin>(`/events/${eventId}/admins`, { method: "POST", body: { email } }),
   remove: (eventId: string, userId: string) =>
     apiRequest<void>(`/events/${eventId}/admins/${userId}`, { method: "DELETE" }),
+};
+
+export type SupportQuery = {
+  status?: string[];
+  category?: string;
+  event_id?: string;
+  role?: "requester" | "handler";
+  q?: string;
+  limit?: number;
+  offset?: number;
+};
+
+export const supportApi = {
+  list: (query: SupportQuery) => apiRequest<Page<SupportCase>>("/support/cases", { query }),
+  create: (body: SupportCaseCreate) => apiRequest<SupportCase>("/support/cases", { method: "POST", body }),
+  get: (id: string) => apiRequest<SupportCase>(`/support/cases/${id}`),
+  messages: (id: string, afterSequence: number) =>
+    apiRequest<SupportMessagePage>(`/support/cases/${id}/messages`, { query: { after_sequence: afterSequence, limit: 100 } }),
+  send: (id: string, body: string) => apiRequest<SupportMessage>(`/support/cases/${id}/messages`, { method: "POST", body: { body } }),
+  setStatus: (id: string, status: SupportStatus) => apiRequest<SupportCase>(`/support/cases/${id}/status`, { method: "PATCH", body: { status } }),
+  assignable: (id: string) => apiRequest<SupportAssignable[]>(`/support/cases/${id}/assignable-users`),
+  assign: (id: string, userId: string | null) =>
+    apiRequest<SupportCase>(`/support/cases/${id}/assignee`, { method: "PATCH", body: { assignee_user_id: userId } }),
+  escalate: (id: string, reason: string) => apiRequest<SupportCase>(`/support/cases/${id}/escalate`, { method: "POST", body: { reason } }),
+};
+
+export type AdminQuery = { q?: string; limit: number; offset: number; [filter: string]: string | number | undefined };
+
+/** Every route answers 403 unless the caller is a PLATFORM_ADMIN. */
+export const adminApi = {
+  users: (query: AdminQuery) => apiRequest<Page<AdminUser>>("/admin/users", { query }),
+  suspendUser: (id: string, reason: string) => apiRequest<AdminUser>(`/admin/users/${id}/suspend`, { method: "POST", body: { reason } }),
+  unsuspendUser: (id: string, reason: string) => apiRequest<AdminUser>(`/admin/users/${id}/unsuspend`, { method: "POST", body: { reason } }),
+  events: (query: AdminQuery) => apiRequest<Page<AdminEvent>>("/admin/events", { query }),
+  suspendEvent: (id: string, reason: string) => apiRequest<AdminEventAction>(`/admin/events/${id}/suspend`, { method: "POST", body: { reason } }),
+  unsuspendEvent: (id: string, reason: string) => apiRequest<AdminEventAction>(`/admin/events/${id}/unsuspend`, { method: "POST", body: { reason } }),
+  stopPaidSales: (id: string, reason: string) => apiRequest<AdminEventAction>(`/admin/events/${id}/paid-sales/stop`, { method: "POST", body: { reason } }),
+  resumePaidSales: (id: string, reason: string) => apiRequest<AdminEventAction>(`/admin/events/${id}/paid-sales/resume`, { method: "POST", body: { reason } }),
+  orders: (query: AdminQuery) => apiRequest<Page<AdminOrder>>("/admin/orders", { query }),
+  payments: (query: AdminQuery) => apiRequest<Page<AdminPayment>>("/admin/payments", { query }),
+  activations: (query: AdminQuery) => apiRequest<Page<AdminActivation>>("/admin/activations", { query }),
+  refunds: (query: AdminQuery) => apiRequest<Page<AdminRefund>>("/admin/refunds", { query }),
+  failures: (query: AdminQuery) => apiRequest<Page<AdminFailure>>("/admin/failures", { query }),
+  escalated: (query: AdminQuery) => apiRequest<Page<SupportCase>>("/admin/support/escalated", { query }),
+  actions: (query: AdminQuery) => apiRequest<Page<AdminAction>>("/admin/actions", { query }),
 };

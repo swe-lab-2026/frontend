@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import QRCode from "qrcode";
 import { useEffect, useState } from "react";
 import { Alert, Badge, Button } from "@/components/ui";
@@ -142,6 +143,10 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
             </Button>
           </div>
         )}
+
+        <Link href={`/support/new?ticket=${ticket.public_id}`} className="w-fit text-sm font-semibold text-brand-ink hover:underline">
+          {t.support.ticketHelp}
+        </Link>
 
         {error !== null && <Alert tone="error">{errorMessage(error, t)}</Alert>}
       </div>

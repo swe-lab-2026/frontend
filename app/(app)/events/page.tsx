@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Alert, LinkButton, PageLoader, PlusIcon, StatusBadge } from "@/components/ui";
+import { Alert, Badge, LinkButton, PageLoader, PlusIcon, StatusBadge } from "@/components/ui";
 import { eventsApi } from "@/lib/api/endpoints";
 import type { EventSummary } from "@/lib/api/types";
 import { dateParts } from "@/lib/datetime";
@@ -113,6 +113,7 @@ export default function EventsPage() {
                       <span className="text-[13px] text-muted">{t.dashboard.columns.capacity}</span>
                       <span className="text-[15px] font-semibold">{event.capacity ?? "—"}</span>
                     </div>
+                    {event.is_suspended && <Badge tone="danger">{t.event.suspendedBadge}</Badge>}
                     <StatusBadge status={event.status} label={t.status[event.status]} />
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8a939e" strokeWidth="2" aria-hidden="true">
                       <path d="m9 18 6-6-6-6" />

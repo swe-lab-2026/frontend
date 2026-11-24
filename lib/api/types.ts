@@ -497,3 +497,163 @@ export type AuditEntry = {
   before: Record<string, unknown> | null;
   after: Record<string, unknown> | null;
 };
+
+// ---------- Support cases ----------
+
+export type SupportStatus = "OPEN" | "IN_PROGRESS" | "WAITING_FOR_CUSTOMER" | "RESOLVED";
+export type SupportCategory =
+  | "TICKET_DELIVERY" | "PAYMENT" | "REFUND" | "SEATING" | "EVENT_INFORMATION" | "CHECK_IN" | "ACCOUNT" | "TECHNICAL";
+export type SupportRelation = "REQUESTER" | "ORGANIZER" | "STAFF" | "PLATFORM_ADMIN";
+export type SupportParticipant = { user_id: string; display_name: string };
+
+export type SupportCaseCreate = {
+  subject: string;
+  category: SupportCategory;
+  message: string;
+  event_id?: string;
+  order_id?: string;
+  ticket_id?: string;
+};
+
+export type SupportCase = {
+  id: string;
+  case_type: "ATTENDEE_ORGANIZER" | "PLATFORM";
+  category: SupportCategory;
+  subject: string;
+  status: SupportStatus;
+  requester: SupportParticipant | null;
+  assignee: SupportParticipant | null;
+  event_id: string | null;
+  event_title: string | null;
+  order_id: string | null;
+  order_number: number | null;
+  ticket_id: string | null;
+  is_escalated: boolean;
+  escalation_reason: string | null;
+  message_count: number;
+  created_at: string;
+  updated_at: string;
+  /** Only on a single case, not in lists. */
+  access: { relation: SupportRelation; can_manage: boolean; can_escalate: boolean } | null;
+};
+
+export type SupportMessage = {
+  id: string;
+  sequence: number;
+  sender: { user_id: string | null; display_name: string | null; role: SupportRelation | null };
+  body: string;
+  created_at: string;
+};
+
+export type SupportMessagePage = { items: SupportMessage[]; has_more: boolean; latest_sequence: number };
+export type SupportAssignable = SupportParticipant & { role: SupportRelation };
+
+// ---------- Platform administration ----------
+
+export type AdminUser = {
+  user_id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  global_role: string;
+  status: string;
+  is_organizer: boolean;
+  organizer_display_name: string | null;
+  suspension_reason: string | null;
+  created_at: string;
+};
+
+export type AdminEvent = {
+  id: string;
+  title: string;
+  owner_email: string | null;
+  organizer_display_name: string | null;
+  status: EventStatus;
+  visibility: EventVisibility;
+  starts_at: string;
+  city: string | null;
+  capacity: number | null;
+  is_suspended: boolean;
+  suspension_reason: string | null;
+  paid_sales_activated: boolean;
+  paid_sales_suspended: boolean;
+  created_at: string;
+};
+
+export type AdminEventAction = { event: AdminEvent; pending_orders: number; confirmed_orders: number };
+
+export type AdminOrder = {
+  id: string;
+  order_number: number;
+  event_id: string;
+  event_title: string | null;
+  buyer_email: string;
+  status: OrderStatus;
+  currency: string;
+  subtotal_amount: string;
+  discount_amount: string;
+  fee_amount: string;
+  total_amount: string;
+  promo_code: string | null;
+  paid_at: string | null;
+  created_at: string;
+};
+
+export type AdminPayment = {
+  id: string;
+  order_id: string;
+  order_number: number | null;
+  provider: string;
+  amount: string;
+  currency: string;
+  status: string;
+  is_simulated: boolean;
+  failure_code: string | null;
+  created_at: string;
+};
+
+export type AdminActivation = {
+  event_id: string;
+  event_title: string | null;
+  organizer_display_name: string | null;
+  organizer_verification_status: string | null;
+  status: "NOT_ACTIVATED" | "ACTIVE" | "SUSPENDED";
+  activation_fee_amount: string;
+  activation_fee_paid_at: string | null;
+  terms_accepted_at: string | null;
+  activated_at: string | null;
+  sales_suspension_reason: string | null;
+};
+
+export type AdminRefund = {
+  id: string;
+  order_id: string;
+  order_number: number | null;
+  amount: string;
+  currency: string;
+  status: string;
+  kind: string;
+  reason: string | null;
+  is_simulated: boolean;
+  created_at: string;
+};
+
+export type AdminFailure = {
+  kind: "PAYMENT" | "REFUND" | "NOTIFICATION";
+  id: string;
+  order_id: string | null;
+  code: string | null;
+  message: string | null;
+  attempts: number | null;
+  occurred_at: string;
+};
+
+export type AdminAction = {
+  id: number;
+  timestamp: string;
+  admin_display_name: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  reason: string | null;
+};

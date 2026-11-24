@@ -224,6 +224,9 @@ function OrderDetails({ orderId }: { orderId: string }) {
             {order.status === "PENDING" ? t.order.cancelPending : t.order.cancel}
           </Button>
         )}
+        <LinkButton variant="secondary" href={`/support/new?order=${order.id}`}>
+          {t.support.getHelp}
+        </LinkButton>
         {event && (
           <LinkButton variant="secondary" href={`/catalog/${event.id}`}>
             {t.order.viewEvent}
