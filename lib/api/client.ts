@@ -166,6 +166,12 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   return (await response.json()) as T;
 }
 
+/** A download that also needs the response headers. */
+export async function apiFile(path: string, options: RequestOptions = {}): Promise<{ blob: Blob; headers: Headers }> {
+  const response = await sendWithAuth(path, options);
+  return { blob: await response.blob(), headers: response.headers };
+}
+
 /**
  * Binary download (e.g. a ticket PDF). A plain <a href> cannot carry the
  * Bearer token, so the file is fetched here and handed over as a Blob.

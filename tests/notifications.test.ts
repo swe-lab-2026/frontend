@@ -10,6 +10,7 @@ describe("notificationHref", () => {
     expect(notificationHref({ type: "EVENT_SUSPENDED", payload: { event_id: ID } })).toBe(`/events/${ID}`);
     expect(notificationHref({ type: "PAID_SALES_STOPPED", payload: { event_id: ID } })).toBe(`/events/${ID}/paid-sales`);
     expect(notificationHref({ type: "EVENT_REPORT_REVIEWED", payload: { event_id: ID } })).toBe("/support/reports");
+    expect(notificationHref({ type: "PAYOUT_STATUS_CHANGED", payload: { payout_account_id: ID } })).toBe("/profile#payout");
   });
   it("builds no link from a missing or malformed id", () => {
     expect(notificationHref({ type: "SUPPORT_CASE_CREATED", payload: {} })).toBeNull();
@@ -27,6 +28,13 @@ describe("notificationText", () => {
     }));
   it("says how a report ended", () =>
     expect(notificationText({ type: "EVENT_REPORT_REVIEWED", payload: { title: "Gig", status: "DISMISSED" } }, en).details).toBe("Gig · Dismissed"));
+  it("gives the new payout status and the reason", () =>
+    expect(notificationText({ type: "PAYOUT_STATUS_CHANGED", payload: { previous_status: "PENDING", status: "BLOCKED", reason: "Name mismatch" } }, en)).toEqual({
+      title: "Payout account status changed",
+      details: "Blocked · Name mismatch",
+    }));
+  it("copes with a payout change that carries no reason", () =>
+    expect(notificationText({ type: "PAYOUT_STATUS_CHANGED", payload: { status: "ACTIVE", reason: null } }, en).details).toBe("Active"));
   it("does not mix a case's current status into a new message", () =>
     expect(notificationText({ type: "SUPPORT_MESSAGE_RECEIVED", payload: { subject: "Help", status: "OPEN" } }, en).details).toBe("Help"));
   it("falls back for types added later", () =>

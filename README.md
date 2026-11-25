@@ -48,7 +48,7 @@ app/
   (app)/events/[eventId]/paid-sales      SCRUM-34: paid-sales activation checklist
   (app)/events/[eventId]/attendees       attendees by order, cancel and refund
   (app)/events/[eventId]/refunds         refund rules, refunds of a cancelled event
-  (app)/admin/[section]                  SCRUM-25: admin portal: moderation, reports, disputes, fees, CSV
+  (app)/admin/[section]                  SCRUM-25: admin portal: moderation, reports, disputes, payouts, fees, CSV
   (public)/notifications                 in-app notifications
   (public)/support/reports               events the user reported
   (public)/support                       SCRUM-25: cases, new case with context, polled thread
@@ -93,19 +93,16 @@ the backend was cloned into). Set `BACKEND_NETWORK` when the folder has another 
 Waiting for the backend:
 
 - Assigned seating (SRS 4.3.1, bonus): there are no seat endpoints.
-- Payout accounts: an admin cannot list them, so only organizer verification can be
-  decided in the portal.
-- The activity timeline contains who reported an event. The web app does not show these
-  entries, but the API still sends them to the organizer.
-- In-app notifications cover support, moderation and reports. Order, payment, refund and
-  event-update notices are sent by email only.
+- In-app notifications cover support, moderation, payout accounts and reports. Order,
+  payment, refund and event-update notices are sent by email only.
 - `calendar.ics` has times in UTC only (the Google link keeps the event timezone).
 - No endpoint makes a user a PLATFORM_ADMIN; the first admin is a database change.
 - A support case carries the internal ticket id, so staff see a short reference.
 
 In this app:
 
-- CSV export is built in the browser from the admin lists (at most 5000 rows).
+- Users, events, orders and payments are exported by the server (at most 10,000 rows,
+  English column names); other admin lists are built in the browser (at most 5000).
 - Image files can be uploaded once the draft exists, not while creating it.
 - The event list has no per-event sales numbers (would need one inventory call per event).
 - Kazakh texts have not been reviewed by a native speaker.

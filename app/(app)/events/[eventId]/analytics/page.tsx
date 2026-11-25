@@ -224,14 +224,25 @@ export default function AnalyticsPage() {
             <Tile label={t.analytics.soldPercent} value={percent(data.capacity.sold_tickets, data.capacity.total_capacity)} />
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Tile label={t.analytics.gross} value={money(sales?.gross_ticket_sales ?? "0")} hint={fmt(t.analytics.ticketCount, { count: sales?.tickets_sold ?? 0 })} />
             <Tile label={t.analytics.discounts} value={money(sales?.discounts ?? "0")} />
+            {/* Fees belong to whole orders, so there are none to show for one ticket type. */}
+            <Tile
+              label={t.analytics.fees}
+              value={typeId !== "all" ? "—" : money(sales?.fees ?? "0")}
+              hint={typeId !== "all" ? t.analytics.feesPerOrder : t.analytics.feesHint}
+            />
             <Tile label={t.analytics.refunds} value={money(sales?.refunds ?? "0")} hint={fmt(t.analytics.refundCount, { count: sales?.refund_count ?? 0 })} />
             <Tile
               label={t.analytics.net}
               value={money(sales?.net_revenue ?? "0")}
-              hint={sales?.fees ? fmt(t.analytics.netWithFees, { fees: money(sales.fees) }) : t.analytics.netNoFees}
+              hint={sales?.fees ? t.analytics.netWithFees : t.analytics.netNoFees}
+            />
+            <Tile
+              label={t.analytics.payout}
+              value={typeId !== "all" ? "—" : money(sales?.estimated_payout ?? "0")}
+              hint={typeId !== "all" ? t.analytics.payoutAllTypes : t.analytics.payoutHint}
             />
           </div>
 

@@ -29,9 +29,8 @@ export const TIMELINE_FILTERS = {
 export type TimelineFilter = keyof typeof TIMELINE_FILTERS;
 
 /**
- * Who reported an event must not reach its organizer (SRS 4.12), but the
- * timeline currently includes the reporter's name. Until the server leaves
- * these entries out, they are at least not shown.
+ * Who reported an event must not reach its organizer (SRS 4.12). The server
+ * leaves these entries out; this keeps them hidden if an older one does not.
  */
 export function isConfidential(entry: Pick<TimelineEntry, "action">): boolean {
   return entry.action === "event.reported" || entry.action.startsWith("admin.event_report");

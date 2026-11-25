@@ -102,6 +102,8 @@ const en = {
     price: "Enter a non-negative price with at most 2 decimals",
   },
   errors: {
+    VERIFICATION_REJECTED: "The platform rejected your verification, so the demo approval is not available. Contact platform support.",
+    PAYOUT_ACCOUNT_BLOCKED: "The platform blocked one of your payout accounts, so the demo approval is not available. Contact platform support.",
     REFUNDS_DISABLED: "The organizer does not offer refunds for this event.",
     REFUND_DEADLINE_PASSED: "The refund period for this event has ended.",
     REFUND_IN_PROGRESS: "A refund for this payment already exists.",
@@ -238,6 +240,8 @@ const en = {
     filterLabel: "Filter by status",
   },
   profile: {
+    emailLanguage: "Email language",
+    emailLanguageHint: "For emails about your account and orders.",
     title: "Profile",
     account: "Account",
     accountHint: "Your personal details.",
@@ -381,6 +385,7 @@ const en = {
     addButton: "Add",
   },
   inventory: {
+    cappedByEvent: "type has {count}; the event capacity limits sales",
     totalSold: "Sold",
     totalReserved: "Reserved",
     totalAvailable: "Available",
@@ -636,7 +641,7 @@ const en = {
   },
   notifications: {
     title: "Notifications",
-    hint: "About support requests, your events and your reports. Order emails are sent separately.",
+    hint: "About support requests, your events, your payout account and your reports. Order emails are sent separately.",
     all: "All",
     unreadOnly: "Unread",
     empty: "You have no notifications.",
@@ -647,6 +652,7 @@ const en = {
     more: "Show more ({shown} of {total})",
     other: "Notification",
     types: {
+      PAYOUT_STATUS_CHANGED: "Payout account status changed",
       SUPPORT_CASE_CREATED: "New support request",
       SUPPORT_MESSAGE_RECEIVED: "New message in a support request",
       SUPPORT_CASE_ASSIGNED: "Support request assigned",
@@ -815,11 +821,17 @@ const en = {
     ofLimit: "{count} of {limit}",
   },
   analytics: {
+    payout: "Estimated payout (demo)",
+    payoutHint: "ticket prices after discounts, without refunded or cancelled orders and fees",
+    payoutAllTypes: "shown for all ticket types together",
+    fees: "Processing fees",
+    feesHint: "paid by buyers on top of ticket prices",
+    feesPerOrder: "charged per order, not per ticket type",
     gross: "Gross ticket sales",
     discounts: "Discounts",
     refunds: "Refunds",
     net: "Net demo revenue",
-    netWithFees: "after discounts and refunds, incl. fees {fees}",
+    netWithFees: "after discounts and refunds, incl. fees",
     netNoFees: "after discounts and refunds",
     refundCount: "refunds: {count}",
     ticketCount: "tickets: {count}",
@@ -892,6 +904,7 @@ const en = {
       REFUNDED: "refunded",
     },
     entities: {
+      export: "Export",
       event_report: "Report",
       platform_settings: "Platform settings",
       organizer_profile: "Organizer",
@@ -924,6 +937,7 @@ const en = {
       refunds_enabled: "refunds",
     },
     actions: {
+      admin_data_exported: "Data exported to CSV",
       event_image_uploaded: "Image uploaded",
       admin_event_report_updated: "Event report reviewed",
       admin_platform_settings_updated: "Platform settings changed",
@@ -1041,6 +1055,15 @@ const en = {
     },
   },
   admin: {
+    searchPayouts: "Organizer name or email",
+    payoutsHint: "Demo accounts. Only part of the account reference is shown.",
+    approvePayout: "Approve",
+    blockPayout: "Block",
+    approvePayoutTitle: "Approve the payout account of {name}?",
+    approvePayoutText: "The organizer can use {account} to open paid sales and is notified with your reason.",
+    blockPayoutTitle: "Block the payout account of {name}?",
+    blockPayoutText: "The organizer cannot use {account} to open paid sales and is notified with your reason. Paid sales that are already open stay open: stop them in Events.",
+    payoutChanged: "{name}: the payout account is now “{status}”.",
     verify: "Verify",
     reject: "Reject",
     verifyTitle: "Verify the organizer {name}?",
@@ -1091,6 +1114,7 @@ const en = {
     title: "Administration",
     denied: "This section is for platform admins only.",
     sections: {
+      payouts: "Payout accounts",
       disputes: "Disputes",
       reports: "Reports",
       settings: "Settings",
@@ -1171,6 +1195,9 @@ const en = {
       NOTIFICATION: "Email",
     },
     columns: {
+      account: "Account",
+      isDefault: "Default",
+      updated: "Updated",
       payment: "Payment",
       note: "Decision note",
       reporter: "Reported by",

@@ -1,15 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Badge, Button, Card, CardHeader, CheckIcon, Checkbox, Field, Input, PageLoader, Select } from "@/components/ui";
 import { fetchPayoutAccount, organizersApi, usersApi } from "@/lib/api/endpoints";
-import type { OrganizerProfile, PayoutAccount } from "@/lib/api/types";
+import type { EmailLocale, OrganizerProfile, PayoutAccount } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { errorMessage, fieldErrors } from "@/lib/errors";
-import { fmt, useI18n } from "@/lib/i18n/I18nProvider";
+import { fmt, LOCALES, useI18n } from "@/lib/i18n/I18nProvider";
 import { useApi } from "@/lib/useApi";
 import { useOrganizerProfile } from "@/lib/useOrganizerProfile";
 import { EMAIL_RE } from "@/lib/validation";
+
+// Each language in its own words, so it can be found from any interface language.
+const LANGUAGE_NAMES: Record<EmailLocale, string> = { ru: "Русский", kk: "Қазақша", en: "English" };
 
 type Feedback = { tone: "success" | "error"; text: string } | null;
 
@@ -18,6 +21,7 @@ function AccountCard() {
   const { user, setUser } = useAuth();
   const [firstName, setFirstName] = useState(user?.first_name ?? "");
   const [lastName, setLastName] = useState(user?.last_name ?? "");
+  const [locale, setLocale] = useState<EmailLocale>(LOCALES.find((code) => code === user?.locale) ?? "en");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [saving, setSaving] = useState(false);
@@ -35,7 +39,7 @@ function AccountCard() {
 
     setSaving(true);
     try {
-      setUser(await usersApi.updateMe({ first_name: firstName.trim(), last_name: lastName.trim() }));
+      setUser(await usersApi.updateMe({ first_name: firstName.trim(), last_name: lastName.trim(), locale }));
       setFeedback({ tone: "success", text: t.common.saved });
     } catch (error) {
       setErrors(fieldErrors(error));
@@ -72,7 +76,16 @@ function AccountCard() {
             {(props) => <Input {...props} value={lastName} onChange={(e) => setLastName(e.target.value)} maxLength={100} />}
           </Field>
         </div>
-        <Field label={t.auth.email}>{(props) => <Input {...props} value={user.email} disabled readOnly />}</Field>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label={t.auth.email}>{(props) => <Input {...props} value={user.email} disabled readOnly />}</Field>
+          <Field label={t.profile.emailLanguage} hint={t.profile.emailLanguageHint} error={errors.locale}>
+            {(props) => (
+              <Select {...props} value={locale} onChange={(e) => setLocale(e.target.value as EmailLocale)}>
+                {LOCALES.map((code) => <option key={code} value={code}>{LANGUAGE_NAMES[code]}</option>)}
+              </Select>
+            )}
+          </Field>
+        </div>
         <div className="flex justify-end">
           <Button type="submit" size="lg" loading={saving}>
             {t.common.save}
@@ -192,13 +205,18 @@ function OrganizerCard({ profile, onSaved }: { profile: OrganizerProfile | null;
 
 function PayoutCard() {
   const { t } = useI18n();
-  const { data: current, error: loadError, reload } = useApi<PayoutAccount | null>(fetchPayoutAccount, []);
+  const { data: current, error: loadError, loading, reload } = useApi<PayoutAccount | null>(fetchPayoutAccount, []);
   const [provider, setProvider] = useState("demo-bank");
   const [accountRef, setAccountRef] = useState("");
   const [isDefault, setIsDefault] = useState(true);
   const [error, setError] = useState<string>();
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [saving, setSaving] = useState(false);
+
+  // The card appears after the browser has already looked for "#payout".
+  useEffect(() => {
+    if (!loading && window.location.hash === "#payout") document.getElementById("payout")?.scrollIntoView();
+  }, [loading]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
