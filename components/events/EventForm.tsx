@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Alert, Button, Card, Field, Input, LinkButton, PlusIcon, Select, Textarea } from "@/components/ui";
+import { eventsApi } from "@/lib/api/endpoints";
 import type { Event, EventPayload, EventVisibility } from "@/lib/api/types";
 import { DEFAULT_TIMEZONE, TIMEZONES, isoToLocalInput, localInputToIso, zoneOffsetMinutes } from "@/lib/datetime";
 import { errorMessage, fieldErrors } from "@/lib/errors";
+import { IMAGE_TYPES, imageProblem } from "@/lib/images";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 
 // Stored as stable slugs so the value does not depend on the UI language.
@@ -75,12 +77,35 @@ export function EventForm({ event, submitLabel, cancelHref, onSubmit }: Props) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadNotice, setUploadNotice] = useState<{ tone: "success" | "error"; text: string } | null>(null);
 
   const set = (key: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
   const setImage = (index: number, key: keyof ImageRow, value: string) =>
     setForm((prev) => ({ ...prev, images: prev.images.map((img, i) => (i === index ? { ...img, [key]: value } : img)) }));
+
+  /** The server stores the file; saving the form is what attaches it. */
+  async function upload(eventId: string, files: File[]) {
+    setUploading(true);
+    setUploadNotice(null);
+    try {
+      for (const file of files) {
+        const problem = imageProblem(file);
+        if (problem) throw new Error(problem);
+        const { object_key } = await eventsApi.uploadImage(eventId, file);
+        setForm((prev) => ({ ...prev, images: [...prev.images.filter((img) => img.object_key.trim()), { object_key, alt_text: "" }] }));
+      }
+      setUploadNotice({ tone: "success", text: t.event.uploaded });
+    } catch (error) {
+      const known = error instanceof Error ? (t.errors as Record<string, string>)[error.message] : undefined;
+      setUploadNotice({ tone: "error", text: known ?? errorMessage(error, t) });
+    } finally {
+      setUploading(false);
+    }
+  }
 
   function validate(): Record<string, string> {
     const next: Record<string, string> = {};
@@ -267,10 +292,14 @@ export function EventForm({ event, submitLabel, cancelHref, onSubmit }: Props) {
         <Card aria-labelledby="ev-images">
           <div className="flex flex-col gap-1">
             <h2 id="ev-images" className="text-xl font-bold">{t.event.imagesSection}</h2>
-            <p className="text-sm text-muted">{t.event.imagesHint}</p>
+            <p className="text-sm text-muted">{event ? t.event.imagesHint : t.event.imagesHintNew}</p>
           </div>
           {form.images.map((img, index) => (
             <div key={index} className="flex flex-wrap items-end gap-3">
+              {img.object_key.trim() && (
+                // eslint-disable-next-line @next/next/no-img-element -- organizer-supplied URLs from arbitrary hosts
+                <img src={img.object_key.trim()} alt="" className="h-12 w-20 shrink-0 rounded-lg bg-[#e9ecef] object-cover" />
+              )}
               <Field label={t.event.imageUrl} className="flex-[2_1_240px]">
                 {(props) => <Input {...props} type="url" placeholder="https://…" value={img.object_key} onChange={(e) => setImage(index, "object_key", e.target.value)} maxLength={512} />}
               </Field>
@@ -286,21 +315,45 @@ export function EventForm({ event, submitLabel, cancelHref, onSubmit }: Props) {
               </Button>
             </div>
           ))}
-          <Button
-            variant="secondary"
-            className="w-fit border-dashed"
-            onClick={() => setForm((prev) => ({ ...prev, images: [...prev.images, { object_key: "", alt_text: "" }] }))}
-          >
-            <PlusIcon size={16} />
-            {t.event.addImage}
-          </Button>
+          {uploadNotice && <Alert tone={uploadNotice.tone}>{uploadNotice.text}</Alert>}
+          <div className="flex flex-wrap gap-3">
+            {event && (
+              <>
+                <input
+                  ref={fileInput}
+                  type="file"
+                  accept={IMAGE_TYPES.join(",")}
+                  multiple
+                  hidden
+                  aria-label={t.event.uploadImage}
+                  onChange={(e) => {
+                    const files = [...(e.target.files ?? [])];
+                    // Lets the same file be chosen again after an error.
+                    e.target.value = "";
+                    if (files.length > 0) void upload(event.id, files);
+                  }}
+                />
+                <Button variant="secondary" className="w-fit" loading={uploading} onClick={() => fileInput.current?.click()}>
+                  {uploading ? t.event.uploading : t.event.uploadImage}
+                </Button>
+              </>
+            )}
+            <Button
+              variant="secondary"
+              className="w-fit border-dashed"
+              onClick={() => setForm((prev) => ({ ...prev, images: [...prev.images, { object_key: "", alt_text: "" }] }))}
+            >
+              <PlusIcon size={16} />
+              {t.event.addImage}
+            </Button>
+          </div>
         </Card>
 
         <div className="flex flex-wrap justify-end gap-3">
           <LinkButton href={cancelHref} variant="secondary" size="lg" className="h-[52px]">
             {t.common.cancel}
           </LinkButton>
-          <Button type="submit" size="lg" loading={submitting} className="h-[52px]">
+          <Button type="submit" size="lg" loading={submitting} disabled={uploading} className="h-[52px]">
             {submitting ? t.common.saving : submitLabel}
           </Button>
         </div>

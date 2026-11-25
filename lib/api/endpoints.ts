@@ -2,26 +2,35 @@ import { ApiError, apiBlob, apiRequest } from "./client";
 import type {
   AdminAction,
   AdminActivation,
+  AdminCampaign,
+  AdminDispute,
   AdminEvent,
   AdminEventAction,
+  AdminEventReport,
   AdminFailure,
   AdminOrder,
   AdminPayment,
   AdminRefund,
   AdminUser,
+  AppNotification,
   AuditEntry,
   Campaign,
   CampaignAnalytics,
   CampaignPayload,
   CampaignResolution,
+  DisputeStatus,
   Event,
   EventAdmin,
   EventAnalytics,
   EventAttendee,
+  EventCancellation,
+  EventImageUpload,
   EventInventory,
   EventPayload,
   EventPreview,
+  EventReport,
   EventSummary,
+  NotificationPage,
   Order,
   OrderCreateRequest,
   OrderItemRequest,
@@ -35,9 +44,17 @@ import type {
   PaidSalesActivation,
   PayoutAccount,
   PayoutAccountCreate,
+  PlatformSettings,
   PromoQuote,
+  Refund,
+  RefundEligibility,
+  RefundPolicy,
+  RefundPolicyUpdate,
+  RefundResult,
   RegisterRequest,
   RegisterResponse,
+  ReportReason,
+  ReportStatus,
   ResendVerificationResponse,
   SupportAssignable,
   SupportCase,
@@ -93,6 +110,7 @@ export const authApi = {
 
 export const usersApi = {
   me: () => apiRequest<User>("/users/me"),
+  reports: (limit: number, offset: number) => apiRequest<Page<EventReport>>("/users/me/reports", { query: { limit, offset } }),
   updateMe: (body: { first_name?: string; last_name?: string }) =>
     apiRequest<User>("/users/me", { method: "PATCH", body }),
 };
@@ -142,7 +160,19 @@ export const eventsApi = {
   preview: (id: string) => apiRequest<EventPreview>(`/events/${id}/preview`),
   publish: (id: string) => apiRequest<Event>(`/events/${id}/publish`, { method: "POST" }),
   unpublish: (id: string) => apiRequest<Event>(`/events/${id}/unpublish`, { method: "POST" }),
-  cancel: (id: string) => apiRequest<Event>(`/events/${id}/cancel`, { method: "POST" }),
+  /** Refunds every paid order (demo). Repeating it resumes unfinished work and never refunds twice. */
+  cancel: (id: string, reason?: string) =>
+    apiRequest<Event>(`/events/${id}/cancel`, { method: "POST", body: { reason: reason || null } }),
+  cancellation: (id: string) => apiRequest<EventCancellation>(`/events/${id}/cancellation`),
+  refundPolicy: (id: string) => apiRequest<RefundPolicy>(`/events/${id}/refund-policy`),
+  updateRefundPolicy: (id: string, body: RefundPolicyUpdate) =>
+    apiRequest<RefundPolicy>(`/events/${id}/refund-policy`, { method: "PUT", body }),
+  /** Stores the file only; the returned key must still be saved in the event's `images`. */
+  uploadImage: (id: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return apiRequest<EventImageUpload>(`/events/${id}/images/upload`, { method: "POST", body: form });
+  },
   inventory: (id: string) => apiRequest<EventInventory>(`/events/${id}/inventory`),
   attendees: (id: string, limit = 500, offset = 0) =>
     apiRequest<EventAttendee[]>(`/events/${id}/attendees`, { query: { limit, offset } }),
@@ -175,6 +205,16 @@ export const catalogApi = {
   list: (limit = 100, offset = 0) => apiRequest<EventSummary[]>("/events/catalog", { query: { limit, offset } }),
   event: (id: string) => apiRequest<Event>(`/events/${id}`),
   ticketTypes: (eventId: string) => apiRequest<TicketType[]>(`/events/${eventId}/ticket-types`),
+  /** Fetched rather than linked, so private events work too. */
+  calendar: (id: string) => apiBlob(`/events/${id}/calendar.ics`),
+  report: (id: string, reason: ReportReason, details: string | null) =>
+    apiRequest<EventReport>(`/events/${id}/reports`, { method: "POST", body: { reason, details } }),
+};
+
+export const notificationsApi = {
+  list: (query: { unread_only?: boolean; limit?: number; offset?: number } = {}) =>
+    apiRequest<NotificationPage>("/users/me/notifications", { query }),
+  markRead: (id: string) => apiRequest<AppNotification>(`/users/me/notifications/${id}/read`, { method: "POST" }),
 };
 
 export const ordersApi = {
@@ -186,6 +226,10 @@ export const ordersApi = {
     apiRequest<Payment>(`/orders/payments/${paymentId}/simulate-result`, { method: "POST", body: { outcome } }),
   /** Cancels every ticket of the order. Allowed for the buyer and the event owner. */
   cancel: (id: string) => apiRequest<Order>(`/orders/${id}/cancel`, { method: "POST" }),
+  /** DEMO full refund of a paid order. A repeat returns the first result. */
+  refund: (id: string) => apiRequest<RefundResult>(`/orders/${id}/refund`, { method: "POST" }),
+  refunds: (id: string) => apiRequest<Refund[]>(`/orders/${id}/refunds`),
+  refundEligibility: (id: string) => apiRequest<RefundEligibility>(`/orders/${id}/refund-eligibility`),
   /** The signed-in user's orders, newest first. The backend scopes by buyer. */
   list: (limit = 200, offset = 0) => apiRequest<Order[]>("/orders", { query: { limit, offset } }),
 };
@@ -256,6 +300,23 @@ export const adminApi = {
   payments: (query: AdminQuery) => apiRequest<Page<AdminPayment>>("/admin/payments", { query }),
   activations: (query: AdminQuery) => apiRequest<Page<AdminActivation>>("/admin/activations", { query }),
   refunds: (query: AdminQuery) => apiRequest<Page<AdminRefund>>("/admin/refunds", { query }),
+  disputes: (query: AdminQuery) => apiRequest<Page<AdminDispute>>("/admin/disputes", { query }),
+  openDispute: (paymentId: string, reason: string) =>
+    apiRequest<AdminDispute>("/admin/disputes", { method: "POST", body: { payment_id: paymentId, reason } }),
+  updateDispute: (id: string, status: DisputeStatus, note?: string) =>
+    apiRequest<AdminDispute>(`/admin/disputes/${id}`, { method: "PATCH", body: { status, resolution_note: note } }),
+  setVerification: (userId: string, status: "VERIFIED" | "REJECTED", reason: string) =>
+    apiRequest<OrganizerProfile>(`/admin/organizers/${userId}/verification`, { method: "POST", body: { status, reason } }),
+  reports: (query: AdminQuery) => apiRequest<Page<AdminEventReport>>("/admin/reports", { query }),
+  updateReport: (id: string, status: ReportStatus, note?: string, suspendEvent = false) =>
+    apiRequest<AdminEventReport>(`/admin/reports/${id}`, {
+      method: "PATCH",
+      body: { status, resolution_note: note, suspend_event: suspendEvent },
+    }),
+  campaigns: (query: AdminQuery) => apiRequest<Page<AdminCampaign>>("/admin/campaigns", { query }),
+  settings: () => apiRequest<PlatformSettings>("/admin/settings"),
+  updateSettings: (body: { activation_fee_amount?: string; processing_fee_percent?: string; reason: string | null }) =>
+    apiRequest<PlatformSettings>("/admin/settings", { method: "PATCH", body }),
   failures: (query: AdminQuery) => apiRequest<Page<AdminFailure>>("/admin/failures", { query }),
   escalated: (query: AdminQuery) => apiRequest<Page<SupportCase>>("/admin/support/escalated", { query }),
   actions: (query: AdminQuery) => apiRequest<Page<AdminAction>>("/admin/actions", { query }),

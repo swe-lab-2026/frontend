@@ -10,7 +10,7 @@ import { errorMessage } from "@/lib/errors";
 import { fmt, useI18n } from "@/lib/i18n/I18nProvider";
 import { useApi } from "@/lib/useApi";
 
-/** The API lists campaigns per event, so an event is picked first. Read-only. */
+/** Money results are per event, so an event is picked first. Read-only. */
 export function AdminCampaigns() {
   const { t, intlLocale } = useI18n();
   const [input, setInput] = useState("");
@@ -26,8 +26,7 @@ export function AdminCampaigns() {
 
   return (
     <Card aria-labelledby="admin-camp-h">
-      <title>{`${t.admin.sections.campaigns} · ${t.admin.title} — BiletFlow`}</title>
-      <CardHeader id="admin-camp-h" title={t.admin.sections.campaigns} description={t.campaigns.performanceHint} />
+      <CardHeader id="admin-camp-h" title={t.admin.performanceByEvent} description={t.campaigns.performanceHint} />
       <div className="flex flex-wrap items-end gap-3">
         <form className="flex min-w-0 flex-[1_1_280px] items-end gap-2" onSubmit={(e) => { e.preventDefault(); setQ(input.trim()); }}>
           <Field label={t.support.search} className="flex-1">

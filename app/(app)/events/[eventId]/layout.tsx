@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
-import { Alert, BackLink, Badge, Button, PageLoader, StatusBadge } from "@/components/ui";
+import { ReasonDialog } from "@/components/admin/ReasonDialog";
+import { Alert, BackLink, Badge, Button, LinkButton, PageLoader, StatusBadge } from "@/components/ui";
 import { eventsApi } from "@/lib/api/endpoints";
 import type { Event } from "@/lib/api/types";
 import { formatDateTime } from "@/lib/datetime";
 import { errorMessage } from "@/lib/errors";
-import { useI18n } from "@/lib/i18n/I18nProvider";
+import { fmt, useI18n } from "@/lib/i18n/I18nProvider";
 import { useApi } from "@/lib/useApi";
 import { EventContext } from "./EventContext";
 
@@ -21,6 +22,7 @@ export default function EventLayout({ children }: LayoutProps<"/">) {
   const { data: event, error: loadError, reload: load, setData: setEvent } = useApi<Event>(() => eventsApi.get(eventId), [eventId]);
   const [version, setVersion] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
   const [notice, setNotice] = useState<{ tone: "success" | "error"; text: string } | null>(null);
 
   const invalidate = useCallback(() => setVersion((v) => v + 1), []);
@@ -48,8 +50,7 @@ export default function EventLayout({ children }: LayoutProps<"/">) {
   }
   if (!event || !contextValue) return <PageLoader label={t.common.loading} />;
 
-  async function runAction(name: string, action: () => Promise<Event | void>, successText: string, confirmText?: string) {
-    if (confirmText && !window.confirm(confirmText)) return;
+  async function runAction(name: string, action: () => Promise<Event | void>, successText: string) {
     setBusy(name);
     setNotice(null);
     try {
@@ -73,6 +74,7 @@ export default function EventLayout({ children }: LayoutProps<"/">) {
     { href: `${base}/tickets`, label: t.event.tabs.tickets },
     { href: `${base}/paid-sales`, label: t.paidSales.tab },
     { href: `${base}/attendees`, label: t.attendees.tab },
+    { href: `${base}/refunds`, label: t.refunds.tab },
     { href: `${base}/campaigns`, label: t.campaigns.tab },
     { href: `${base}/analytics`, label: t.analytics.tab },
     { href: `${base}/history`, label: t.history.tab },
@@ -112,6 +114,10 @@ export default function EventLayout({ children }: LayoutProps<"/">) {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
+          {/* The public page itself: until publication only the owner can open it. */}
+          <LinkButton variant="secondary" size="lg" href={`/catalog/${id}`}>
+            {event.status === "DRAFT" || event.status === "UNPUBLISHED" ? t.event.actions.preview : t.event.actions.viewPage}
+          </LinkButton>
           {canPublish && (
             <Button
               size="lg"
@@ -207,15 +213,28 @@ export default function EventLayout({ children }: LayoutProps<"/">) {
                 {t.event.actions.delete}
               </Button>
             )}
-            <Button
-              variant="danger"
-              loading={busy === "cancel"}
-              onClick={() => runAction("cancel", () => eventsApi.cancel(id), t.event.actions.cancelled, t.event.actions.confirmCancel)}
-            >
+            <Button variant="danger" onClick={() => setCancelling(true)}>
               {t.event.actions.cancel}
             </Button>
           </div>
         </section>
+      )}
+
+      {cancelling && (
+        <ReasonDialog
+          title={fmt(t.event.actions.cancelTitle, { name: event.title })}
+          consequence={t.event.actions.cancelText}
+          confirmLabel={t.event.actions.cancel}
+          danger
+          optional
+          hint={t.event.actions.cancelReasonHint}
+          onClose={() => setCancelling(false)}
+          onConfirm={async (reason) => {
+            updateEvent(await eventsApi.cancel(id, reason));
+            setNotice({ tone: "success", text: t.event.actions.cancelled });
+            setCancelling(false);
+          }}
+        />
       )}
     </EventContext.Provider>
   );

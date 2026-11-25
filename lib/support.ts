@@ -1,4 +1,4 @@
-import type { SupportCase, SupportCategory, SupportMessage, SupportStatus } from "@/lib/api/types";
+import type { ReportStatus, SupportCase, SupportCategory, SupportMessage, SupportStatus } from "@/lib/api/types";
 import type { BadgeTone } from "@/lib/tickets";
 
 export const SUPPORT_CATEGORIES: SupportCategory[] = [
@@ -57,4 +57,15 @@ export function pollCursor(messages: SupportMessage[]): number {
     cursor = message.sequence;
   }
   return cursor;
+}
+
+const REPORT_TONES: Record<ReportStatus, BadgeTone> = {
+  OPEN: "info",
+  UNDER_REVIEW: "warning",
+  RESOLVED: "success",
+  DISMISSED: "neutral",
+};
+
+export function reportTone(status: string): BadgeTone {
+  return REPORT_TONES[status as ReportStatus] ?? "neutral";
 }

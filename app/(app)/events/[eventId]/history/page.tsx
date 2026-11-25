@@ -8,7 +8,7 @@ import type { AuditEntry, TimelineEntry } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { formatDateTime } from "@/lib/datetime";
 import { errorMessage } from "@/lib/errors";
-import { changedFields, type DayRange, isBadRange, rangeQuery, scalarChanges, statusChange, TIMELINE_FILTERS, type TimelineFilter, updatedFields } from "@/lib/history";
+import { changedFields, type DayRange, isBadRange, isConfidential, rangeQuery, scalarChanges, statusChange, TIMELINE_FILTERS, type TimelineFilter, updatedFields } from "@/lib/history";
 import { fmt, useI18n } from "@/lib/i18n/I18nProvider";
 import { useApi } from "@/lib/useApi";
 import { useEventContext } from "../EventContext";
@@ -90,6 +90,7 @@ export default function HistoryPage() {
 
   const filtered = filter.from !== "" || filter.to !== "" || filter.type !== "all";
   const current = !badRange && data?.key === filterKey ? data : null;
+  const shown = current?.items.filter((entry) => !isConfidential(entry)) ?? [];
 
   const actor = (entry: TimelineEntry) => {
     const role = (t.history.actors as Record<string, string>)[entry.actor.type] ?? entry.actor.type;
@@ -158,12 +159,12 @@ export default function HistoryPage() {
 
       {badRange ? null : !current ? (
         error ? null : <PageLoader label={t.common.loading} />
-      ) : current.items.length === 0 ? (
+      ) : shown.length === 0 && current.items.length >= current.total ? (
         <p className="py-6 text-center text-[15px] text-muted">{filtered ? t.history.noMatches : t.history.empty}</p>
       ) : (
         <>
           <ol className="flex flex-col">
-            {current.items.map((entry) => {
+            {shown.map((entry) => {
               const extra = details(entry);
               return (
                 <li key={entry.id} className="flex flex-col gap-1 border-l-2 border-line py-3 pl-5 sm:flex-row sm:gap-6">

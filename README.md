@@ -45,7 +45,12 @@ app/
   (app)/events/[eventId]/analytics       SCRUM-24: KPIs, revenue, sales over time, attendance, campaigns
   (app)/events/[eventId]/history         SCRUM-24: activity timeline
   (app)/events/[eventId]/support         SCRUM-25: attendee requests about the event
-  (app)/admin/[section]                  SCRUM-25: platform admin portal, CSV export
+  (app)/events/[eventId]/paid-sales      SCRUM-34: paid-sales activation checklist
+  (app)/events/[eventId]/attendees       attendees by order, cancel and refund
+  (app)/events/[eventId]/refunds         refund rules, refunds of a cancelled event
+  (app)/admin/[section]                  SCRUM-25: admin portal: moderation, reports, disputes, fees, CSV
+  (public)/notifications                 in-app notifications
+  (public)/support/reports               events the user reported
   (public)/support                       SCRUM-25: cases, new case with context, polled thread
   (public)/catalog/[eventId]             SCRUM-21: public event page, ticket and promo selection
   (public)/orders/[orderId]              SCRUM-21: price review, reservation timer, demo payment
@@ -68,19 +73,39 @@ lib/datetime.ts    event times are entered in the venue's IANA timezone and sent
   401 (the backend rotates refresh tokens and rejects reuse). This is simple but readable
   by any XSS; an httpOnly-cookie BFF would be the production-grade option.
 
-## Known gaps (backend not ready yet)
+## Docker
 
-- Image upload; paid-sales activation screen. No endpoint marks an organizer VERIFIED or a
-  payout account ACTIVE, so activation also needs a manual database change.
-- Attendees cannot see remaining stock or whether paid sales are active before ordering:
-  the event page learns it from the server's rejection and then blocks that ticket.
-- Checkout has no attendee fields in the API; tickets are issued to the signed-in account.
-- Analytics has no time series: the sales chart sends one request per bar (at most 31).
-- CSV export is built in the browser from the admin lists (at most 5000 rows).
+The image holds a standalone Next.js server. `BACKEND_URL` is a **build** argument: the
+`/api/v1` proxy target is fixed while building, so rebuild to change it.
+
+```bash
+# 1. Start the backend first (in the backend repo): docker compose up -d
+# 2. In this repo:
+docker compose up -d --build      # http://localhost:3000
+```
+
+The web container joins the backend's Compose network (`backend_default`, after the folder
+the backend was cloned into). Set `BACKEND_NETWORK` when the folder has another name,
+`BACKEND_URL` to use another API, and `WEB_PORT` for another port.
+
+## Known gaps
+
+Waiting for the backend:
+
+- Assigned seating (SRS 4.3.1, bonus): there are no seat endpoints.
+- Payout accounts: an admin cannot list them, so only organizer verification can be
+  decided in the portal.
+- The activity timeline contains who reported an event. The web app does not show these
+  entries, but the API still sends them to the organizer.
+- In-app notifications cover support, moderation and reports. Order, payment, refund and
+  event-update notices are sent by email only.
+- `calendar.ics` has times in UTC only (the Google link keeps the event timezone).
 - No endpoint makes a user a PLATFORM_ADMIN; the first admin is a database change.
-- Campaigns are listed per event only, so the admin picks an event first.
 - A support case carries the internal ticket id, so staff see a short reference.
-- In-app notifications (`/users/me/notifications`) are not shown yet.
-- Organizers can no longer cancel a free registration: the backend answers 403.
-- No `GET` for the payout account, so the profile page only shows it after saving.
+
+In this app:
+
+- CSV export is built in the browser from the admin lists (at most 5000 rows).
+- Image files can be uploaded once the draft exists, not while creating it.
 - The event list has no per-event sales numbers (would need one inventory call per event).
+- Kazakh texts have not been reviewed by a native speaker.

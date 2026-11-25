@@ -5,10 +5,12 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { AttendeeFields } from "@/components/checkout/AttendeeFields";
 import { PriceSummary } from "@/components/checkout/PriceSummary";
+import { AddToCalendar } from "@/components/events/AddToCalendar";
+import { ReportEvent } from "@/components/events/ReportEvent";
 import { Alert, BackLink, Badge, Button, Field, Input, LinkButton, PageLoader } from "@/components/ui";
 import { ApiError } from "@/lib/api/client";
-import { campaignsApi, catalogApi, ordersApi } from "@/lib/api/endpoints";
-import type { CampaignResolution, Event, TicketType } from "@/lib/api/types";
+import { campaignsApi, catalogApi, eventsApi, ordersApi } from "@/lib/api/endpoints";
+import type { CampaignResolution, Event, RefundPolicy, TicketType } from "@/lib/api/types";
 import {
   type AttendeeDraft,
   type AttendeeErrors,
@@ -23,6 +25,7 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { discountLabel, PROMO_CODE_RE } from "@/lib/campaigns";
 import { formatDateTime } from "@/lib/datetime";
 import { errorMessage } from "@/lib/errors";
+import { refundWindow } from "@/lib/refunds";
 import { fmt, useI18n } from "@/lib/i18n/I18nProvider";
 import {
   buildOrder,
@@ -74,6 +77,8 @@ function EventPage() {
   const params = useSearchParams();
   const campaignToken = params.get("campaign");
 
+  // Extra information only: the page works without it.
+  const { data: policy } = useApi<RefundPolicy | null>(() => eventsApi.refundPolicy(eventId).catch(() => null), [eventId]);
   const { data, error: loadError, reload } = useApi<[Event, TicketType[], CampaignState]>(
     () => Promise.all([catalogApi.event(eventId), catalogApi.ticketTypes(eventId), resolveCampaign(campaignToken, eventId)]),
     [eventId, campaignToken],
@@ -155,6 +160,9 @@ function EventPage() {
   const canName = totalTickets > 0 && totalTickets <= MAX_ATTENDEES;
   const naming = nameEach && canName;
   const slots = naming ? attendeeSlots(selection) : [];
+
+  // Free registrations are cancelled, not refunded, so the rules only matter with paid tickets.
+  const refunds = policy && ticketTypes.some((tt) => !tt.is_free) ? refundWindow(policy, now) : null;
 
   const windowNotice =
     event.status === "CANCELLED" ? t.attend.cancelled
@@ -294,16 +302,27 @@ function EventPage() {
               <p className="whitespace-pre-line text-[15px] leading-relaxed text-ink-2">{event.description}</p>
             </section>
           )}
-          {event.refund_policy && (
+          {(event.refund_policy || refunds) && (
             <section className="flex flex-col gap-2">
               <h2 className="text-lg font-bold">{t.attend.refundPolicy}</h2>
-              <p className="whitespace-pre-line text-[15px] leading-relaxed text-ink-2">{event.refund_policy}</p>
+              {refunds && (
+                <p className="text-[15px] font-semibold">
+                  {refunds === "disabled"
+                    ? t.refunds.publicDisabled
+                    : fmt(refunds === "open" ? t.refunds.publicOpen : t.refunds.publicClosed, { date: date(policy?.refund_deadline ?? event.starts_at) })}
+                </p>
+              )}
+              {event.refund_policy && <p className="whitespace-pre-line text-[15px] leading-relaxed text-ink-2">{event.refund_policy}</p>}
             </section>
           )}
+          <AddToCalendar event={event} />
           {!isOwner && (
-            <Link href={`/support/new?event=${event.id}`} className="w-fit text-sm font-semibold text-brand-ink hover:underline">
-              {t.support.askOrganizer}
-            </Link>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+              <Link href={`/support/new?event=${event.id}`} className="w-fit text-sm font-semibold text-brand-ink hover:underline">
+                {t.support.askOrganizer}
+              </Link>
+              <ReportEvent event={event} />
+            </div>
           )}
         </article>
 
@@ -366,15 +385,24 @@ function EventPage() {
                           </div>
                         )}
                       </div>
+                    ) : availability === "paidInactive" ? (
+                      // A sentence, not a badge: it has to wrap in the narrow column.
+                      <p className="text-[13px] font-semibold text-warn-ink">
+                        {t.attend.paidInactive}
+                        {isOwner && (
+                          <>
+                            {" · "}
+                            <Link href={`/events/${event.id}/paid-sales`} className="underline">{t.paidSales.noticeLink}</Link>
+                          </>
+                        )}
+                      </p>
                     ) : (
                       <Badge tone={availability === "soldOut" ? "danger" : "neutral"}>
                         {availability === "soldOut"
                           ? t.attend.soldOut
-                          : availability === "paidInactive"
-                            ? t.attend.paidInactive
-                            : availability === "notStarted" && tt.sales_starts_at
-                              ? fmt(t.attend.salesNotStarted, { date: date(tt.sales_starts_at) })
-                              : t.attend.salesEnded}
+                          : availability === "notStarted" && tt.sales_starts_at
+                            ? fmt(t.attend.salesNotStarted, { date: date(tt.sales_starts_at) })
+                            : t.attend.salesEnded}
                       </Badge>
                     )}
                   </li>

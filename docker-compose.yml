@@ -1,0 +1,22 @@
+# Runs next to the backend's compose project and joins its network, so the web
+# app reaches the API by its service name on any OS. Start the backend first.
+services:
+  web:
+    build:
+      context: .
+      args:
+        BACKEND_URL: ${BACKEND_URL:-http://api:8000}
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    init: true
+
+networks:
+  backend:
+    external: true
+    # Compose names it after the folder the backend was cloned into.
+    name: ${BACKEND_NETWORK:-backend_default}

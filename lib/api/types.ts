@@ -114,6 +114,8 @@ export type EventImageInput = {
   sort_order?: number;
 };
 
+export type EventImageUpload = { object_key: string; url: string; content_type: string; size_bytes: number; width: number; height: number };
+
 export type EventPayload = {
   title: string;
   description: string | null;
@@ -368,6 +370,92 @@ export type Payment = {
   failure_code: string | null;
 };
 
+// ---------- Refunds (simulated) ----------
+
+export type RefundPolicy = {
+  event_id: string;
+  refunds_enabled: boolean;
+  /** Null counts as 0: until the event starts. */
+  refund_deadline_hours: number | null;
+  refund_deadline: string | null;
+  policy_text: string | null;
+};
+
+export type RefundPolicyUpdate = { refunds_enabled: boolean; refund_deadline_hours: number | null; policy_text: string | null };
+
+export type RefundKind = "CUSTOMER_REQUEST" | "EVENT_CANCELLATION" | "ORGANIZER_REQUEST" | string;
+
+export type Refund = {
+  id: string;
+  order_id: string;
+  payment_id: string;
+  amount: string;
+  currency: string;
+  status: "PENDING" | "SUCCEEDED" | "FAILED" | "CANCELLED" | string;
+  kind: RefundKind;
+  reason: string | null;
+  is_simulated: boolean;
+  created_at: string;
+  completed_at: string | null;
+};
+
+/** What cancelling or refunding would do for the signed-in user; changes nothing. */
+export type RefundEligibility = {
+  order_id: string;
+  cancellable: boolean;
+  refundable: boolean;
+  /** Error code of the first rule that blocks it. */
+  reason: string | null;
+  refund_amount: string;
+  currency: string;
+  refunds_enabled: boolean;
+  refund_deadline: string | null;
+};
+
+export type RefundResult = { order_id: string; order_status: OrderStatus; refund: Refund | null; replayed: boolean };
+
+/** Progress of closing the orders of a cancelled event. */
+export type EventCancellation = {
+  event_id: string;
+  event_status: EventStatus;
+  cancelled_at: string | null;
+  reason: string | null;
+  orders_remaining: number;
+  orders_refunded: number;
+  orders_cancelled: number;
+  event_cancellation_refund_total: string;
+  complete: boolean;
+};
+
+// ---------- In-app notifications ----------
+
+export type AppNotification = {
+  id: string;
+  type: string;
+  /** Depends on `type`; every value is optional and read defensively. */
+  payload: Record<string, unknown>;
+  created_at: string;
+  read_at: string | null;
+};
+
+export type NotificationPage = Page<AppNotification> & { unread_count: number };
+
+// ---------- Reported events ----------
+
+export const REPORT_REASONS = ["FRAUD", "MISLEADING", "INAPPROPRIATE", "PROHIBITED", "SPAM", "OTHER"] as const;
+export type ReportReason = (typeof REPORT_REASONS)[number];
+export type ReportStatus = "OPEN" | "UNDER_REVIEW" | "RESOLVED" | "DISMISSED";
+
+export type EventReport = {
+  id: string;
+  event_id: string;
+  reason: ReportReason;
+  details: string | null;
+  status: ReportStatus;
+  created_at: string;
+  resolved_at: string | null;
+};
+
 // ---------- Promo campaigns ----------
 
 export type DiscountType = "PERCENT" | "FIXED";
@@ -489,11 +577,15 @@ export type CampaignMetrics = {
   sales: { currency: string; orders: number; tickets_sold: number; reversed_orders: number; discounts: string; revenue: string }[];
 };
 
+/** One day with sales, in the event timezone. `gross` is before discounts and fees. */
+export type SalesPoint = { date: string; currency: string; orders: number; tickets: number; gross: string };
+
 /** Capacity and attendance are current snapshots; sales follow the date range. */
 export type EventAnalytics = {
   capacity: { total_capacity: number; sold_tickets: number; reserved_tickets: number; remaining_tickets: number };
   attendance: { checked_in: number; eligible_tickets: number; attendance_rate: number | null; cancelled_tickets: number; refunded_tickets: number };
   sales: CurrencySales[];
+  sales_over_time: SalesPoint[];
   ticket_types: TicketTypeMetrics[];
   campaigns: CampaignMetrics[];
 };
@@ -585,6 +677,7 @@ export type AdminUser = {
   status: string;
   is_organizer: boolean;
   organizer_display_name: string | null;
+  organizer_verification_status: string | null;
   suspension_reason: string | null;
   created_at: string;
 };
@@ -655,6 +748,7 @@ export type AdminRefund = {
   id: string;
   order_id: string;
   order_number: number | null;
+  event: { id: string; title: string } | null;
   amount: string;
   currency: string;
   status: string;
@@ -662,6 +756,56 @@ export type AdminRefund = {
   reason: string | null;
   is_simulated: boolean;
   created_at: string;
+  completed_at: string | null;
+};
+
+export type DisputeStatus = "OPEN" | "UNDER_REVIEW" | "RESOLVED" | "REJECTED";
+
+/** Bookkeeping only: a dispute never moves money by itself. */
+export type AdminDispute = {
+  id: string;
+  payment_id: string;
+  order_id: string;
+  event_id: string;
+  support_case_id: string | null;
+  status: DisputeStatus;
+  reason: string;
+  amount: string;
+  currency: string;
+  resolution_note: string | null;
+  resolved_at: string | null;
+  created_at: string;
+};
+
+export type AdminEventReport = EventReport & {
+  event: { id: string; title: string };
+  event_is_suspended: boolean;
+  /** Reports on the same event that are still open, this one included. */
+  event_active_reports: number;
+  reporter: { id: string; name: string } | null;
+  reporter_email: string | null;
+  resolution_note: string | null;
+};
+
+export type AdminCampaign = {
+  id: string;
+  event: { id: string; title: string } | null;
+  name: string;
+  code: string | null;
+  effective_status: CampaignStatus;
+  discount_type: DiscountType;
+  discount_value: string;
+  redemption_count: number;
+  redemption_limit: number | null;
+  starts_at: string | null;
+  ends_at: string | null;
+};
+
+export type PlatformSettings = {
+  activation_fee_amount: string;
+  activation_fee_currency: string;
+  processing_fee_percent: string;
+  updated_at: string;
 };
 
 export type AdminFailure = {

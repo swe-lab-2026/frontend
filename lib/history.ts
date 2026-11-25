@@ -1,4 +1,4 @@
-import type { AuditEntry, EventSummary, TimelineEntry } from "@/lib/api/types";
+import type { AuditEntry, EventSummary, SalesPoint, TimelineEntry } from "@/lib/api/types";
 import { isoToLocalInput, localInputToIso } from "@/lib/datetime";
 
 export type EventPhase = "DRAFT" | "UPCOMING" | "ACTIVE" | "COMPLETED" | "CANCELLED";
@@ -28,6 +28,15 @@ export const TIMELINE_FILTERS = {
 } as const satisfies Record<string, readonly string[]>;
 export type TimelineFilter = keyof typeof TIMELINE_FILTERS;
 
+/**
+ * Who reported an event must not reach its organizer (SRS 4.12), but the
+ * timeline currently includes the reporter's name. Until the server leaves
+ * these entries out, they are at least not shown.
+ */
+export function isConfidential(entry: Pick<TimelineEntry, "action">): boolean {
+  return entry.action === "event.reported" || entry.action.startsWith("admin.event_report");
+}
+
 export type DayRange = { from: string; to: string };
 
 const nextDay = (day: string, days = 1) => {
@@ -49,10 +58,7 @@ export function isBadRange({ from, to }: DayRange): boolean {
 const MAX_BUCKETS = 31;
 const DEFAULT_DAYS = 14;
 
-/**
- * Days (or equal groups of days for long ranges) to chart. The API has no time
- * series, so each bucket is one analytics request; the cap bounds that.
- */
+/** Days (or equal groups of days for long ranges) to chart. */
 export function salesBuckets({ from, to }: DayRange, timeZone: string, now: Date): DayRange[] {
   const today = isoToLocalInput(now.toISOString(), timeZone).slice(0, 10);
   const last = to || (from > today ? from : today);
@@ -66,6 +72,22 @@ export function salesBuckets({ from, to }: DayRange, timeZone: string, now: Date
     buckets.push({ from: start, to: end < last ? end : last });
   }
   return buckets;
+}
+
+export type SalesBucket = DayRange & { revenue: number; tickets: number };
+
+/** The server sends only days with sales; days without any stay at zero. */
+export function sumByBucket(buckets: DayRange[], points: SalesPoint[]): SalesBucket[] {
+  return buckets.map((bucket) => {
+    // Calendar days of the form YYYY-MM-DD compare correctly as strings.
+    const days = points.filter((point) => point.date >= bucket.from && point.date <= bucket.to);
+    return {
+      ...bucket,
+      // Amounts are charted in KZT only: currencies are never added together.
+      revenue: days.reduce((sum, point) => sum + (point.currency === "KZT" ? Number(point.gross) : 0), 0),
+      tickets: days.reduce((sum, point) => sum + point.tickets, 0),
+    };
+  });
 }
 
 /** Runs `task` for each item, a few at a time, keeping the order of results. */

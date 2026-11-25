@@ -1,2 +1,2 @@
-export const ADMIN_SECTIONS = ["users", "events", "orders", "payments", "activations", "refunds", "failures", "campaigns", "support", "actions"] as const;
+export const ADMIN_SECTIONS = ["users", "events", "orders", "payments", "activations", "refunds", "disputes", "reports", "failures", "campaigns", "support", "settings", "actions"] as const;
 export type AdminSectionKey = (typeof ADMIN_SECTIONS)[number];

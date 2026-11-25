@@ -4,16 +4,19 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { PendingCheckout } from "@/components/checkout/PendingCheckout";
 import { PriceSummary } from "@/components/checkout/PriceSummary";
+import { AddToCalendar } from "@/components/events/AddToCalendar";
+import { RefundDetails } from "@/components/refunds/RefundDetails";
 import { TicketCard } from "@/components/tickets/TicketCard";
 import { Alert, BackLink, Badge, Button, CheckIcon, LinkButton, PageLoader } from "@/components/ui";
 import { ApiError } from "@/lib/api/client";
 import { catalogApi, ordersApi, ticketsApi } from "@/lib/api/endpoints";
-import type { Event, Order } from "@/lib/api/types";
+import type { Event, Order, Refund, RefundEligibility } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { canRetry, retryHref } from "@/lib/checkout";
 import { DEFAULT_TIMEZONE, formatDateTime } from "@/lib/datetime";
 import { errorMessage } from "@/lib/errors";
 import { fmt, useI18n } from "@/lib/i18n/I18nProvider";
+import { canRefund, currentRefund, isPaidOrder } from "@/lib/refunds";
 import { formatMoney } from "@/lib/registration";
 import { canCancelOrder, isOrderConfirmed, orderTone } from "@/lib/tickets";
 import { useApi } from "@/lib/useApi";
@@ -44,7 +47,7 @@ function OrderDetails({ orderId }: { orderId: string }) {
   const [cancelError, setCancelError] = useState<unknown>(null);
   // Only known right after the attempt: the order itself just becomes CANCELLED.
   const [paymentFailure, setPaymentFailure] = useState<string | null>(null);
-  const { data, error, reload } = useApi<[Order, Event | null]>(
+  const { data, error, reload } = useApi<[Order, Event | null, RefundEligibility | null, Refund | null]>(
     async () => {
       const order = await ordersApi.get(orderId);
       // The backend attaches tickets only to PAID/CONFIRMED orders, so for a
@@ -56,7 +59,14 @@ function OrderDetails({ orderId }: { orderId: string }) {
       }
       // A suspended, private or unpublished event is hidden from the buyer, but
       // their order and tickets stay valid and must remain reachable.
-      return [order, await catalogApi.event(order.event_id).catch(hiddenEvent)];
+      const money = Number(order.total_amount) > 0;
+      return Promise.all([
+        order,
+        catalogApi.event(order.event_id).catch(hiddenEvent),
+        // Extra information: the order is shown even when these fail.
+        isPaidOrder(order) ? ordersApi.refundEligibility(order.id).catch(() => null) : null,
+        money && order.paid_at ? ordersApi.refunds(order.id).then(currentRefund, () => null) : null,
+      ]);
     },
     [orderId],
   );
@@ -81,7 +91,7 @@ function OrderDetails({ orderId }: { orderId: string }) {
   }
   if (!data) return <PageLoader label={t.common.loading} />;
 
-  const [order, event] = data;
+  const [order, event, eligibility, refund] = data;
   const ticket = order.tickets[0];
   const info = {
     title: event?.title ?? ticket?.event_title ?? t.order.event,
@@ -91,12 +101,12 @@ function OrderDetails({ orderId }: { orderId: string }) {
   };
   const cancellable = canCancelOrder(order) && (info.startsAt === null || new Date(info.startsAt) > new Date());
 
-  async function handleCancel() {
-    if (!window.confirm(order.status === "PENDING" ? t.order.confirmCancelPending : t.order.confirmCancel)) return;
+  async function close(question: string, action: () => Promise<unknown>) {
+    if (!window.confirm(question)) return;
     setCancelling(true);
     setCancelError(null);
     try {
-      await ordersApi.cancel(order.id);
+      await action();
       reload();
     } catch (err) {
       setCancelError(err);
@@ -108,6 +118,8 @@ function OrderDetails({ orderId }: { orderId: string }) {
   const money = (amount: string) => (Number(amount) === 0 ? t.tickets.free : formatMoney(amount, order.currency, intlLocale));
   const statusLabel = (t.order.status as Record<string, string>)[order.status] ?? order.status;
   const paid = isOrderConfirmed(order.status);
+  const refundable = canRefund(order, eligibility);
+  const refundBlocked = isPaidOrder(order) && eligibility !== null && !refundable;
   const pending = order.status === "PENDING";
   // Cancelled / expired / refunded orders explain themselves in words, not just a badge colour.
   const statusHelp = (t.order.statusHelp as Record<string, string>)[order.status];
@@ -216,12 +228,38 @@ function OrderDetails({ orderId }: { orderId: string }) {
         </section>
       )}
 
+      {event && (paid || event.status === "CANCELLED") && (
+        <div className="rounded-[20px] bg-surface p-6 sm:p-8">
+          <AddToCalendar event={event} />
+        </div>
+      )}
+
+      {refund && <RefundDetails refund={refund} timezone={info.timezone} />}
+
+      {refundBlocked && (
+        <p className="text-center text-sm text-muted">
+          {(eligibility.reason && (t.errors as Record<string, string>)[eligibility.reason]) ?? t.refunds.unavailable}
+        </p>
+      )}
       {cancelError !== null && <Alert tone="error">{errorMessage(cancelError, t)}</Alert>}
 
       <div className="flex flex-wrap justify-center gap-3">
         {cancellable && (
-          <Button variant="danger-outline" onClick={handleCancel} loading={cancelling}>
+          <Button
+            variant="danger-outline"
+            onClick={() => close(order.status === "PENDING" ? t.order.confirmCancelPending : t.order.confirmCancel, () => ordersApi.cancel(order.id))}
+            loading={cancelling}
+          >
             {order.status === "PENDING" ? t.order.cancelPending : t.order.cancel}
+          </Button>
+        )}
+        {refundable && (
+          <Button
+            variant="danger-outline"
+            onClick={() => close(fmt(t.refunds.confirm, { amount: money(eligibility?.refund_amount ?? order.total_amount) }), () => ordersApi.refund(order.id))}
+            loading={cancelling}
+          >
+            {t.refunds.request}
           </Button>
         )}
         <LinkButton variant="secondary" href={`/support/new?order=${order.id}`}>
