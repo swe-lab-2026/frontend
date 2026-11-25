@@ -126,6 +126,8 @@ export type Event = Omit<EventPayload, "images" | "visibility"> & {
   images: EventImage[];
   created_at: string;
   updated_at: string;
+  /** Suspended by the platform: hidden from the public and not on sale. */
+  is_suspended: boolean;
 };
 
 export type EventSummary = {
@@ -141,6 +143,7 @@ export type EventSummary = {
   capacity: number | null;
   created_at: string;
   updated_at: string;
+  is_suspended: boolean;
 };
 
 export type TicketTypePayload = {
@@ -258,9 +261,14 @@ export type Ticket = {
   seat_label?: string | null;
 };
 
+export type OrderItemRequest = { ticket_type_id: string; quantity: number };
+
+/** At most one of `promo_code` / `campaign_token`; the server prices the order. */
 export type OrderCreateRequest = {
   event_id: string;
-  items: { ticket_type_id: string; quantity: number }[];
+  items: OrderItemRequest[];
+  promo_code?: string;
+  campaign_token?: string;
 };
 
 export type OrderItem = {
@@ -268,6 +276,8 @@ export type OrderItem = {
   ticket_type_name: string;
   quantity: number;
   unit_price: string;
+  /** Sum of the line after discounts (units can be discounted unevenly). */
+  subtotal: string;
   final_price: string;
 };
 
@@ -282,6 +292,9 @@ export type Order = {
   fee_amount: string;
   total_amount: string;
   is_free: boolean;
+  campaign_id: string | null;
+  /** The code as it was when the order was placed. */
+  promo_code: string | null;
   /** Set only for unpaid orders: when the inventory hold is released. */
   expires_at: string | null;
   paid_at: string | null;
@@ -304,4 +317,343 @@ export type EventAttendee = {
   currency: string;
   total_amount: string;
   ticket_count: number;
+};
+
+// ---------- Simulated payments ----------
+
+export type PaymentOutcome = "success" | "failed" | "abandoned";
+
+export type PaymentSimulation = {
+  payment_id: string;
+  order_id: string;
+  amount: string;
+  currency: string;
+  status: string;
+  is_simulated: boolean;
+};
+
+export type Payment = {
+  id: string;
+  order_id: string;
+  amount: string;
+  currency: string;
+  status: "PENDING" | "SUCCEEDED" | "FAILED" | "CANCELLED" | "REFUNDED" | string;
+  is_simulated: boolean;
+  failure_code: string | null;
+};
+
+// ---------- Promo campaigns ----------
+
+export type DiscountType = "PERCENT" | "FIXED";
+export type CampaignStatus = "ACTIVE" | "SCHEDULED" | "EXPIRED" | "DISABLED" | "EXHAUSTED";
+
+export type CampaignPayload = {
+  name: string;
+  code: string;
+  discount_type: DiscountType;
+  discount_value: string;
+  starts_at: string | null;
+  expires_at: string | null;
+  redemption_limit: number | null;
+  /** Empty = every ticket type of the event. */
+  ticket_type_ids: string[];
+};
+
+export type Campaign = Omit<CampaignPayload, "code"> & {
+  id: string;
+  event_id: string;
+  code: string | null;
+  redemption_count: number;
+  remaining_redemptions: number | null;
+  is_active: boolean;
+  effective_status: CampaignStatus;
+  campaign_token: string;
+  qr_path: string;
+  /** Null until the backend's PUBLIC_WEB_BASE_URL is configured. */
+  qr_url: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CampaignAnalytics = {
+  campaign_id: string;
+  promo_code: string | null;
+  currency: string;
+  redemption_limit: number | null;
+  redemption_count: number;
+  reserved_redemptions: number;
+  successful_redemptions: number;
+  released_redemptions: number;
+  discount_total: string;
+  attributed_order_count: number;
+  attributed_revenue: string;
+  gross_attributed_order_count: number;
+  gross_attributed_revenue: string;
+  reversed_order_count: number;
+  reversed_revenue: string;
+};
+
+/** Public resolution of a scanned Campaign QR; carries no code or counts. */
+export type CampaignResolution = {
+  event: { id: string; title: string };
+  promotion: {
+    campaign_token: string;
+    name: string;
+    discount_type: DiscountType;
+    discount_value: string;
+    expires_at: string | null;
+    applies_to_all_ticket_types: boolean;
+    ticket_type_ids: string[];
+  };
+};
+
+/** Server-calculated price preview; never consumes a redemption. */
+export type PromoQuote = {
+  campaign_id: string;
+  code: string | null;
+  discount_type: DiscountType;
+  discount_value: string;
+  currency: string;
+  subtotal: string;
+  discount_amount: string;
+  fee_amount: string;
+  final_total: string;
+};
+
+// ---------- Organizer analytics and history ----------
+
+export type Page<T> = { items: T[]; total: number; limit: number; offset: number };
+
+/** Realized sales for the period in one currency; currencies are never mixed. */
+export type CurrencySales = {
+  currency: string;
+  orders: number;
+  tickets_sold: number;
+  gross_ticket_sales: string;
+  discounts: string;
+  ticket_revenue: string;
+  /** Null with a ticket type filter: fees belong to whole orders. */
+  fees: string | null;
+  gross_revenue: string;
+  refund_count: number;
+  refunds: string;
+  net_revenue: string;
+};
+
+export type TicketTypeMetrics = {
+  ticket_type_id: string;
+  name: string;
+  currency: string;
+  is_hidden: boolean;
+  capacity: number;
+  sold_tickets: number;
+  reserved_tickets: number;
+  remaining_tickets: number;
+  checked_in: number;
+  period_tickets_sold: number;
+  period_revenue: string;
+};
+
+export type CampaignMetrics = {
+  campaign_id: string;
+  name: string;
+  promo_code: string | null;
+  reserved_redemptions: number;
+  successful_redemptions: number;
+  sales: { currency: string; orders: number; tickets_sold: number; reversed_orders: number; discounts: string; revenue: string }[];
+};
+
+/** Capacity and attendance are current snapshots; sales follow the date range. */
+export type EventAnalytics = {
+  capacity: { total_capacity: number; sold_tickets: number; reserved_tickets: number; remaining_tickets: number };
+  attendance: { checked_in: number; eligible_tickets: number; attendance_rate: number | null; cancelled_tickets: number; refunded_tickets: number };
+  sales: CurrencySales[];
+  ticket_types: TicketTypeMetrics[];
+  campaigns: CampaignMetrics[];
+};
+
+export type TimelineEntry = {
+  id: number;
+  timestamp: string;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  actor: { user_id: string | null; type: string; display_name: string | null };
+  /** English sentence from the server, e.g. "Payment changed from PENDING to SUCCEEDED". */
+  description: string;
+};
+
+/** Raw audit row; only used for the old and new values of a change. */
+export type AuditEntry = {
+  id: number;
+  timestamp: string;
+  actor_id: string | null;
+  actor_type: "CUSTOMER" | "ORGANIZER" | "PLATFORM_ADMIN" | "USER" | "SYSTEM" | string;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  event_id: string | null;
+  metadata: Record<string, unknown> | null;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+};
+
+// ---------- Support cases ----------
+
+export type SupportStatus = "OPEN" | "IN_PROGRESS" | "WAITING_FOR_CUSTOMER" | "RESOLVED";
+export type SupportCategory =
+  | "TICKET_DELIVERY" | "PAYMENT" | "REFUND" | "SEATING" | "EVENT_INFORMATION" | "CHECK_IN" | "ACCOUNT" | "TECHNICAL";
+export type SupportRelation = "REQUESTER" | "ORGANIZER" | "STAFF" | "PLATFORM_ADMIN";
+export type SupportParticipant = { user_id: string; display_name: string };
+
+export type SupportCaseCreate = {
+  subject: string;
+  category: SupportCategory;
+  message: string;
+  event_id?: string;
+  order_id?: string;
+  ticket_id?: string;
+};
+
+export type SupportCase = {
+  id: string;
+  case_type: "ATTENDEE_ORGANIZER" | "PLATFORM";
+  category: SupportCategory;
+  subject: string;
+  status: SupportStatus;
+  requester: SupportParticipant | null;
+  assignee: SupportParticipant | null;
+  event_id: string | null;
+  event_title: string | null;
+  order_id: string | null;
+  order_number: number | null;
+  ticket_id: string | null;
+  is_escalated: boolean;
+  escalation_reason: string | null;
+  message_count: number;
+  created_at: string;
+  updated_at: string;
+  /** Only on a single case, not in lists. */
+  access: { relation: SupportRelation; can_manage: boolean; can_escalate: boolean } | null;
+};
+
+export type SupportMessage = {
+  id: string;
+  sequence: number;
+  sender: { user_id: string | null; display_name: string | null; role: SupportRelation | null };
+  body: string;
+  created_at: string;
+};
+
+export type SupportMessagePage = { items: SupportMessage[]; has_more: boolean; latest_sequence: number };
+export type SupportAssignable = SupportParticipant & { role: SupportRelation };
+
+// ---------- Platform administration ----------
+
+export type AdminUser = {
+  user_id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  global_role: string;
+  status: string;
+  is_organizer: boolean;
+  organizer_display_name: string | null;
+  suspension_reason: string | null;
+  created_at: string;
+};
+
+export type AdminEvent = {
+  id: string;
+  title: string;
+  owner_email: string | null;
+  organizer_display_name: string | null;
+  status: EventStatus;
+  visibility: EventVisibility;
+  starts_at: string;
+  city: string | null;
+  capacity: number | null;
+  is_suspended: boolean;
+  suspension_reason: string | null;
+  paid_sales_activated: boolean;
+  paid_sales_suspended: boolean;
+  created_at: string;
+};
+
+export type AdminEventAction = { event: AdminEvent; pending_orders: number; confirmed_orders: number };
+
+export type AdminOrder = {
+  id: string;
+  order_number: number;
+  event_id: string;
+  event_title: string | null;
+  buyer_email: string;
+  status: OrderStatus;
+  currency: string;
+  subtotal_amount: string;
+  discount_amount: string;
+  fee_amount: string;
+  total_amount: string;
+  promo_code: string | null;
+  paid_at: string | null;
+  created_at: string;
+};
+
+export type AdminPayment = {
+  id: string;
+  order_id: string;
+  order_number: number | null;
+  provider: string;
+  amount: string;
+  currency: string;
+  status: string;
+  is_simulated: boolean;
+  failure_code: string | null;
+  created_at: string;
+};
+
+export type AdminActivation = {
+  event_id: string;
+  event_title: string | null;
+  organizer_display_name: string | null;
+  organizer_verification_status: string | null;
+  status: "NOT_ACTIVATED" | "ACTIVE" | "SUSPENDED";
+  activation_fee_amount: string;
+  activation_fee_paid_at: string | null;
+  terms_accepted_at: string | null;
+  activated_at: string | null;
+  sales_suspension_reason: string | null;
+};
+
+export type AdminRefund = {
+  id: string;
+  order_id: string;
+  order_number: number | null;
+  amount: string;
+  currency: string;
+  status: string;
+  kind: string;
+  reason: string | null;
+  is_simulated: boolean;
+  created_at: string;
+};
+
+export type AdminFailure = {
+  kind: "PAYMENT" | "REFUND" | "NOTIFICATION";
+  id: string;
+  order_id: string | null;
+  code: string | null;
+  message: string | null;
+  attempts: number | null;
+  occurred_at: string;
+};
+
+export type AdminAction = {
+  id: number;
+  timestamp: string;
+  admin_display_name: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  reason: string | null;
 };

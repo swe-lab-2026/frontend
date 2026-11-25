@@ -77,7 +77,8 @@ type RequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
   auth?: boolean;
-  query?: Record<string, string | number | undefined>;
+  /** An array is sent as a repeated parameter (?status=A&status=B). */
+  query?: Record<string, string | number | boolean | string[] | undefined>;
 };
 
 async function parseError(response: Response): Promise<ApiError> {
@@ -95,7 +96,8 @@ async function parseError(response: Response): Promise<ApiError> {
 function buildUrl(path: string, query?: RequestOptions["query"]): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query ?? {})) {
-    if (value !== undefined) params.set(key, String(value));
+    if (Array.isArray(value)) value.forEach((item) => params.append(key, item));
+    else if (value !== undefined) params.set(key, String(value));
   }
   const qs = params.toString();
   return `${API_BASE}${path}${qs ? `?${qs}` : ""}`;

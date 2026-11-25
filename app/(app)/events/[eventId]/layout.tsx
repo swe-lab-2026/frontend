@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
-import { Alert, BackLink, Button, PageLoader, StatusBadge } from "@/components/ui";
+import { Alert, BackLink, Badge, Button, PageLoader, StatusBadge } from "@/components/ui";
 import { eventsApi } from "@/lib/api/endpoints";
 import type { Event } from "@/lib/api/types";
 import { formatDateTime } from "@/lib/datetime";
@@ -72,6 +72,10 @@ export default function EventLayout({ children }: LayoutProps<"/">) {
     { href: `${base}/edit`, label: t.event.tabs.details },
     { href: `${base}/tickets`, label: t.event.tabs.tickets },
     { href: `${base}/attendees`, label: t.attendees.tab },
+    { href: `${base}/campaigns`, label: t.campaigns.tab },
+    { href: `${base}/analytics`, label: t.analytics.tab },
+    { href: `${base}/history`, label: t.history.tab },
+    { href: `${base}/support`, label: t.support.tab },
   ];
   const place = [event.venue_name, event.city].filter(Boolean).join(", ");
   const cover = event.images[0];
@@ -92,6 +96,7 @@ export default function EventLayout({ children }: LayoutProps<"/">) {
         <div className="flex min-w-0 flex-[999_1_320px] flex-col gap-2.5">
           <div className="flex flex-wrap items-center gap-2.5">
             <StatusBadge status={event.status} label={t.status[event.status]} />
+            {event.is_suspended && <Badge tone="danger">{t.event.suspendedBadge}</Badge>}
             <span className="text-[13px] text-muted">
               {t.visibility[event.visibility]}
               {event.category && ` · ${(t.categories as Record<string, string>)[event.category] ?? event.category}`}
@@ -145,6 +150,12 @@ export default function EventLayout({ children }: LayoutProps<"/">) {
         </div>
       </section>
 
+      {event.is_suspended && (
+        <Alert tone="error">
+          {t.event.suspended}{" "}
+          <Link href={`/support/new?event=${id}`} className="font-semibold underline">{t.support.contactPlatform}</Link>
+        </Alert>
+      )}
       {notice && <Alert tone={notice.tone}>{notice.text}</Alert>}
 
       <nav aria-label={t.event.tabsLabel} className="flex flex-wrap gap-1 border-b border-[#e1e4e8]">

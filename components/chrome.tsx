@@ -64,7 +64,9 @@ export function AppHeader() {
     { href: "/catalog", label: t.nav.catalog },
     { href: "/orders", label: t.nav.orders },
     { href: "/events", label: t.nav.dashboard },
+    { href: "/support", label: t.nav.support },
     { href: "/profile", label: t.nav.profile },
+    ...(user?.global_role === "PLATFORM_ADMIN" ? [{ href: "/admin", label: t.nav.admin }] : []),
   ];
   const initials = user ? `${user.first_name[0] ?? ""}${user.last_name[0] ?? ""}`.toUpperCase() : "";
 
@@ -128,7 +130,7 @@ export function AppHeader() {
  */
 export function SiteHeader() {
   const { t } = useI18n();
-  const { status, logout } = useAuth();
+  const { status, user, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -162,6 +164,18 @@ export function SiteHeader() {
                 <Link href="/events" className="rounded-full px-4 py-2.5 text-[15px] font-medium text-ink-2 hover:bg-chip">
                   {t.nav.dashboard}
                 </Link>
+                <Link
+                  href="/support"
+                  aria-current={pathname.startsWith("/support") ? "page" : undefined}
+                  className="rounded-full px-4 py-2.5 text-[15px] font-medium text-ink-2 hover:bg-chip aria-[current=page]:bg-chip aria-[current=page]:font-semibold aria-[current=page]:text-ink"
+                >
+                  {t.nav.support}
+                </Link>
+                {user?.global_role === "PLATFORM_ADMIN" && (
+                  <Link href="/admin" className="rounded-full px-4 py-2.5 text-[15px] font-medium text-ink-2 hover:bg-chip">
+                    {t.nav.admin}
+                  </Link>
+                )}
               </>
             )}
           </nav>
