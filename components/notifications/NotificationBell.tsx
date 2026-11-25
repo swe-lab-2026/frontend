@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
 import { fmt, useI18n } from "@/lib/i18n/I18nProvider";
-import { refreshUnread, setUnread, useUnread } from "@/lib/unread";
+import { refreshUnread, useUnread } from "@/lib/unread";
 import { usePolling } from "@/lib/usePolling";
 
 const REFRESH = 60_000;
@@ -16,8 +15,6 @@ export function NotificationBell() {
   const unread = useUnread();
 
   usePolling(refreshUnread, REFRESH);
-  // The next account to sign in on this device must not see this one's count.
-  useEffect(() => () => setUnread(0), []);
 
   return (
     <Link

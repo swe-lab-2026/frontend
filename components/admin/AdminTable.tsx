@@ -131,7 +131,7 @@ export function AdminTable<T>({ section }: { section: AdminSection<T> }) {
         <p className="py-6 text-center text-[15px] text-muted">{t.admin.empty}</p>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-xl border border-line-soft">
+          <div className="relative overflow-x-auto rounded-xl border border-line-soft">
             <table className="w-full min-w-[860px] border-collapse text-sm">
               <thead>
                 <tr className="bg-[#f7f8f9] text-left text-muted">

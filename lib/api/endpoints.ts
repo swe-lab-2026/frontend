@@ -73,6 +73,16 @@ import type {
   User,
 } from "./types";
 
+/** For lists without a total: reads pages until one is not full. `size` is the server's maximum. */
+export async function allPages<T>(size: number, load: (query: { limit: number; offset: number }) => Promise<T[]>): Promise<T[]> {
+  const rows: T[] = [];
+  for (;;) {
+    const page = await load({ limit: size, offset: rows.length });
+    rows.push(...page);
+    if (page.length < size) return rows;
+  }
+}
+
 export const authApi = {
   register: (body: RegisterRequest) =>
     apiRequest<RegisterResponse>("/auth/register", { method: "POST", body, auth: false }),
@@ -153,7 +163,7 @@ export const paidSalesApi = {
 };
 
 export const eventsApi = {
-  listOwn: (limit = 100, offset = 0) => apiRequest<EventSummary[]>("/events", { query: { limit, offset } }),
+  listOwn: () => allPages(100, (query) => apiRequest<EventSummary[]>("/events", { query })),
   get: (id: string) => apiRequest<Event>(`/events/${id}`),
   create: (body: EventPayload) => apiRequest<Event>("/events", { method: "POST", body }),
   update: (id: string, body: Partial<EventPayload>) =>
@@ -177,8 +187,7 @@ export const eventsApi = {
     return apiRequest<EventImageUpload>(`/events/${id}/images/upload`, { method: "POST", body: form });
   },
   inventory: (id: string) => apiRequest<EventInventory>(`/events/${id}/inventory`),
-  attendees: (id: string, limit = 500, offset = 0) =>
-    apiRequest<EventAttendee[]>(`/events/${id}/attendees`, { query: { limit, offset } }),
+  attendees: (id: string) => allPages(500, (query) => apiRequest<EventAttendee[]>(`/events/${id}/attendees`, { query })),
   /** `start` inclusive, `end` exclusive, both with a UTC offset. */
   analytics: (id: string, query: { start?: string; end?: string; ticket_type_id?: string } = {}) =>
     apiRequest<EventAnalytics>(`/events/${id}/analytics`, { query }),
@@ -205,7 +214,8 @@ export const campaignsApi = {
 // Attendee-facing reads. The token is still sent when present (the backend
 // treats it as optional), so an organizer previewing their own event works too.
 export const catalogApi = {
-  list: (limit = 100, offset = 0) => apiRequest<EventSummary[]>("/events/catalog", { query: { limit, offset } }),
+  /** Oldest first, and events that already ended are included. */
+  list: () => allPages(100, (query) => apiRequest<EventSummary[]>("/events/catalog", { query })),
   event: (id: string) => apiRequest<Event>(`/events/${id}`),
   ticketTypes: (eventId: string) => apiRequest<TicketType[]>(`/events/${eventId}/ticket-types`),
   /** Fetched rather than linked, so private events work too. */

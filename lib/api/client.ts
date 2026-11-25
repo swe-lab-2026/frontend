@@ -122,6 +122,10 @@ async function send(path: string, options: RequestOptions, token: string | null)
 // a single refresh call.
 let refreshInFlight: Promise<boolean> | null = null;
 
+/**
+ * False when the session is over. Throws when the server could not answer:
+ * an outage is no reason to sign the user out.
+ */
 export function refreshTokens(): Promise<boolean> {
   if (refreshInFlight) return refreshInFlight;
   const refreshToken = tokenStore.refresh;
@@ -130,11 +134,10 @@ export function refreshTokens(): Promise<boolean> {
   refreshInFlight = (async () => {
     try {
       const response = await send("/auth/refresh", { method: "POST", body: { refresh_token: refreshToken } }, null);
+      if (response.status >= 500 || response.status === 429) throw await parseError(response);
       if (!response.ok) return false;
       tokenStore.set((await response.json()) as TokenResponse);
       return true;
-    } catch {
-      return false;
     } finally {
       refreshInFlight = null;
     }

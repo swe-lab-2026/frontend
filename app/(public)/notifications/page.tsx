@@ -67,6 +67,7 @@ function Notifications() {
     <Card aria-labelledby="notifications-h" className="mx-auto w-full max-w-[880px]">
       <title>{`${t.notifications.title} — BiletFlow`}</title>
       <CardHeader
+        as="h1"
         id="notifications-h"
         title={t.notifications.title}
         description={t.notifications.hint}

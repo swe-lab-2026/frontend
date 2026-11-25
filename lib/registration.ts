@@ -103,6 +103,7 @@ export function formatMoney(amount: string | number, currency: string, intlLocal
 
 /** Only same-site paths are allowed as a post-login redirect (no open redirect). */
 export function safeNext(value: string | null | undefined, fallback = "/events"): string {
-  if (!value || !value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) return fallback;
+  // Browsers drop tabs and line breaks and read a backslash as "/", so "/\t/host" would leave the site.
+  if (!value || !/^\/(?![/\\])/.test(value) || /[\t\r\n]/.test(value)) return fallback;
   return value;
 }

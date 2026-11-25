@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { allPages } from "@/lib/api/endpoints";
 import { ApiError, apiRequest, onSessionExpired, tokenStore } from "@/lib/api/client";
 
 function json(status: number, body: unknown) {
@@ -74,5 +75,31 @@ describe("apiRequest", () => {
     expect(expired).toHaveBeenCalledOnce();
     expect(tokenStore.access).toBeNull();
     unsubscribe();
+  });
+
+  it.each([
+    ["the refresh call fails", async () => { throw new TypeError("Failed to fetch"); }],
+    ["the server is restarting", async () => new Response("Internal Server Error", { status: 500 })],
+    ["the refresh call is rate limited", async () => json(429, { error: { code: "RATE_LIMITED", message: "", details: {} } })],
+  ])("keeps the session when %s", async (_name, refresh) => {
+    tokenStore.set({ access_token: "old", refresh_token: "r1", token_type: "bearer", expires_in: 900 });
+    vi.stubGlobal("fetch", vi.fn(async (url: string) =>
+      url.endsWith("/auth/refresh") ? refresh() : json(401, { error: { code: "TOKEN_EXPIRED", message: "", details: {} } })));
+    const expired = vi.fn();
+    const unsubscribe = onSessionExpired(expired);
+
+    await expect(apiRequest("/users/me")).rejects.toBeInstanceOf(Error);
+    expect(expired).not.toHaveBeenCalled();
+    expect(tokenStore.refresh).toBe("r1");
+    unsubscribe();
+  });
+});
+
+describe("allPages", () => {
+  const rows = (n: number) => Array.from({ length: n }, (_, i) => i);
+  it.each([0, 1, 99, 100, 101, 250])("reads all %i rows", async (n) => {
+    const load = vi.fn(async ({ limit, offset }: { limit: number; offset: number }) => rows(n).slice(offset, offset + limit));
+    expect(await allPages(100, load)).toEqual(rows(n));
+    expect(load).toHaveBeenCalledTimes(Math.floor(n / 100) + 1);
   });
 });

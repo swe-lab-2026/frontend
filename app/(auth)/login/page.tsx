@@ -13,7 +13,7 @@ import { EMAIL_RE } from "@/lib/validation";
 
 function LoginForm() {
   const { t } = useI18n();
-  const { login, status } = useAuth();
+  const { login, status, ended } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
   const nextPath = safeNext(params.get("next"));
@@ -61,7 +61,7 @@ function LoginForm() {
 
       {params.get("verified") && <Alert tone="success">{t.auth.verified}</Alert>}
       {params.get("reset") && <Alert tone="success">{t.auth.resetDone}</Alert>}
-      {params.get("expired") && <Alert tone="info">{t.auth.sessionExpired}</Alert>}
+      {ended === "expired" && <Alert tone="info">{t.auth.sessionExpired}</Alert>}
       {formError && <Alert tone="error">{formError}</Alert>}
 
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">

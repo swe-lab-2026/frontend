@@ -1,4 +1,4 @@
-import { PublicHeader } from "@/components/chrome";
+import { PublicHeader, SiteFooter } from "@/components/chrome";
 
 export default function AuthLayout({ children }: LayoutProps<"/">) {
   return (
@@ -9,7 +9,7 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
           {children}
         </div>
       </main>
-      <footer className="px-4 py-6 text-center text-[13px] text-muted">© 2026 BiletFlow · CSCI 361</footer>
+      <SiteFooter />
     </div>
   );
 }
