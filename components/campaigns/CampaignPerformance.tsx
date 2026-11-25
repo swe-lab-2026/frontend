@@ -11,7 +11,7 @@ export function CampaignPerformance({ campaigns, analytics }: { campaigns: Campa
   const columns = [t.campaigns.redeemed, t.campaigns.reserved, t.campaigns.discountTotal, t.campaigns.orders, t.campaigns.gross, t.campaigns.reversed, t.campaigns.net];
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-line-soft">
+    <div className="relative overflow-x-auto rounded-xl border border-line-soft">
       <table className="w-full min-w-[820px] border-collapse text-sm">
         <thead>
           <tr className="bg-[#f7f8f9] text-left text-muted">

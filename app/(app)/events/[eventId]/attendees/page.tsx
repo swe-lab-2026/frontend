@@ -98,7 +98,7 @@ export default function AttendeesPage() {
           {visible.length === 0 ? (
             <p className="py-6 text-center text-[15px] text-muted">{t.attendees.noMatches}</p>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-line-soft">
+            <div className="relative overflow-x-auto rounded-xl border border-line-soft">
               <table className="w-full min-w-[860px] border-collapse text-sm">
                 <thead>
                   <tr className="bg-[#f7f8f9] text-left text-muted">

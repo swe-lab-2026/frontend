@@ -123,5 +123,8 @@ describe("safeNext", () => {
     ["https://evil.example", "/events"],
     ["//evil.example", "/events"],
     ["/\\evil.example", "/events"],
+    ["/\t/evil.example", "/events"],
+    ["/\n/evil.example", "/events"],
+    ["/\t\\evil.example", "/events"],
   ])("%s -> %s", (input, expected) => expect(safeNext(input)).toBe(expected));
 });

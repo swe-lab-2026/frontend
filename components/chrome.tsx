@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { LOCALE_LABELS, LOCALES, type Locale, useI18n } from "@/lib/i18n/I18nProvider";
@@ -43,7 +43,11 @@ export function LanguageSwitcher() {
   );
 }
 
-/** Header for signed-out pages: logo and language only. */
+export function SiteFooter() {
+  return <footer className="px-4 py-6 text-center text-[13px] text-muted">© 2026 BiletFlow · CSCI 361</footer>;
+}
+
+/** Header of the sign-in pages: logo and language only. */
 export function PublicHeader() {
   return (
     <header className="border-b border-line bg-surface">
@@ -55,154 +59,92 @@ export function PublicHeader() {
   );
 }
 
-export function AppHeader() {
-  const { t } = useI18n();
-  const { user, logout } = useAuth();
+function NavLink({ href, label }: { href: string; label: string }) {
   const pathname = usePathname();
-  const router = useRouter();
-
-  const nav = [
-    { href: "/catalog", label: t.nav.catalog },
-    { href: "/orders", label: t.nav.orders },
-    { href: "/events", label: t.nav.dashboard },
-    { href: "/support", label: t.nav.support },
-    { href: "/profile", label: t.nav.profile },
-    ...(user?.global_role === "PLATFORM_ADMIN" ? [{ href: "/admin", label: t.nav.admin }] : []),
-  ];
-  const initials = user ? `${user.first_name[0] ?? ""}${user.last_name[0] ?? ""}`.toUpperCase() : "";
-
-  async function handleLogout() {
-    await logout();
-    router.replace("/login");
-  }
-
+  const active = pathname === href || pathname.startsWith(`${href}/`);
   return (
-    <header className="border-b border-line bg-surface">
-      <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <div className="flex flex-wrap items-center gap-7">
-          <Logo href="/events" />
-          <nav aria-label={t.nav.dashboard} className="flex flex-wrap gap-1">
-            {nav.map((item) => {
-              const active = pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  aria-current={active ? "page" : undefined}
-                  className={
-                    active
-                      ? "rounded-full bg-chip px-4 py-2.5 text-[15px] font-semibold text-ink"
-                      : "rounded-full px-4 py-2.5 text-[15px] font-medium text-ink-2 hover:bg-chip"
-                  }
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-        <div className="flex items-center gap-2">
-          <LanguageSwitcher />
-          {user && <NotificationBell />}
-          {user && (
-            <span
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft text-sm font-bold text-brand-ink"
-              title={`${user.first_name} ${user.last_name}`}
-              aria-hidden="true"
-            >
-              {initials}
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="min-h-11 rounded-xl px-3 text-[15px] font-medium text-muted hover:bg-chip hover:text-ink"
-          >
-            {t.nav.signOut}
-          </button>
-        </div>
-      </div>
-    </header>
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className="shrink-0 whitespace-nowrap rounded-full px-3 py-2.5 text-[15px] font-medium text-ink-2 hover:bg-chip aria-[current=page]:bg-chip aria-[current=page]:font-semibold aria-[current=page]:text-ink"
+    >
+      {label}
+    </Link>
   );
 }
 
 /**
- * Header for attendee pages, which work signed in or out: signed-in users get
- * a link to their cabinet, everyone else a sign-in link that returns here.
+ * The one header of every page outside sign-in. Some of those pages also work
+ * signed out: there it shows only the catalog and a sign-in link that returns
+ * to the same page.
  */
-export function SiteHeader() {
+function SiteHeader() {
   const { t } = useI18n();
   const { status, user, logout } = useAuth();
   const pathname = usePathname();
-  const router = useRouter();
 
-  async function handleLogout() {
-    await logout();
-    router.refresh();
-  }
+  const initials = user ? `${user.first_name[0] ?? ""}${user.last_name[0] ?? ""}`.toUpperCase() : "";
 
   return (
     <header className="border-b border-line bg-surface">
-      <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <div className="flex flex-wrap items-center gap-7">
-          <Logo href="/catalog" />
-          <nav aria-label={t.nav.catalog} className="flex flex-wrap gap-1">
-            <Link
-              href="/catalog"
-              aria-current={pathname === "/catalog" ? "page" : undefined}
-              className="rounded-full px-4 py-2.5 text-[15px] font-medium text-ink-2 hover:bg-chip aria-[current=page]:bg-chip aria-[current=page]:font-semibold aria-[current=page]:text-ink"
-            >
-              {t.nav.catalog}
-            </Link>
-            {status === "authenticated" && (
-              <>
-                <Link
-                  href="/orders"
-                  aria-current={pathname.startsWith("/orders") ? "page" : undefined}
-                  className="rounded-full px-4 py-2.5 text-[15px] font-medium text-ink-2 hover:bg-chip aria-[current=page]:bg-chip aria-[current=page]:font-semibold aria-[current=page]:text-ink"
-                >
-                  {t.nav.orders}
-                </Link>
-                <Link href="/events" className="rounded-full px-4 py-2.5 text-[15px] font-medium text-ink-2 hover:bg-chip">
-                  {t.nav.dashboard}
-                </Link>
-                <Link
-                  href="/support"
-                  aria-current={pathname.startsWith("/support") ? "page" : undefined}
-                  className="rounded-full px-4 py-2.5 text-[15px] font-medium text-ink-2 hover:bg-chip aria-[current=page]:bg-chip aria-[current=page]:font-semibold aria-[current=page]:text-ink"
-                >
-                  {t.nav.support}
-                </Link>
-                {user?.global_role === "PLATFORM_ADMIN" && (
-                  <Link href="/admin" className="rounded-full px-4 py-2.5 text-[15px] font-medium text-ink-2 hover:bg-chip">
-                    {t.nav.admin}
-                  </Link>
-                )}
-              </>
-            )}
-          </nav>
-        </div>
-        <div className="flex items-center gap-2">
+      <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-x-5 gap-y-2 px-4 py-3 sm:px-6">
+        <Logo href="/catalog" />
+        {/* Below the first row on narrow screens, where it scrolls sideways instead of taking several rows. */}
+        <nav aria-label={t.nav.menu} className="order-last -mx-1 flex w-full gap-1 overflow-x-auto p-1 xl:order-none xl:mx-0 xl:w-auto xl:flex-1 xl:overflow-visible xl:p-0">
+          <NavLink href="/catalog" label={t.nav.catalog} />
+          {user && (
+            <>
+              <NavLink href="/orders" label={t.nav.orders} />
+              <NavLink href="/events" label={t.nav.dashboard} />
+              <NavLink href="/support" label={t.nav.support} />
+              <NavLink href="/profile" label={t.nav.profile} />
+              {user.global_role === "PLATFORM_ADMIN" && <NavLink href="/admin" label={t.nav.admin} />}
+            </>
+          )}
+        </nav>
+        <div className="flex min-h-11 items-center gap-1 sm:gap-2">
           <LanguageSwitcher />
-          {status === "authenticated" && <NotificationBell />}
-          {status === "authenticated" ? (
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="min-h-11 rounded-xl px-3 text-[15px] font-medium text-muted hover:bg-chip hover:text-ink"
-            >
-              {t.nav.signOut}
-            </button>
-          ) : status === "anonymous" ? (
+          {user && (
+            <>
+              <NotificationBell />
+              <span
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft text-sm font-bold text-brand-ink"
+                title={`${user.first_name} ${user.last_name}`}
+                aria-hidden="true"
+              >
+                {initials}
+              </span>
+              {/* Pages that need an account send signed-out visitors to sign-in themselves. */}
+              <button
+                type="button"
+                onClick={logout}
+                className="min-h-11 rounded-xl px-3 text-[15px] font-medium text-muted hover:bg-chip hover:text-ink"
+              >
+                {t.nav.signOut}
+              </button>
+            </>
+          )}
+          {status === "anonymous" && (
             <Link
               href={`/login?next=${encodeURIComponent(pathname)}`}
               className="inline-flex h-11 items-center rounded-xl bg-ink px-4 text-[15px] font-semibold text-white hover:bg-black"
             >
               {t.nav.signIn}
             </Link>
-          ) : null}
+          )}
         </div>
       </div>
     </header>
+  );
+}
+
+/** Header, page width and footer shared by every page outside sign-in. */
+export function SiteFrame({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-screen flex-col">
+      <SiteHeader />
+      <main className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col gap-6 px-4 pb-16 pt-8 sm:px-6">{children}</main>
+      <SiteFooter />
+    </div>
   );
 }

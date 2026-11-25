@@ -91,7 +91,7 @@ function CaseForm({ context }: { context: Context }) {
 
   return (
     <Card aria-labelledby="new-case-h">
-      <CardHeader id="new-case-h" title={t.support.newTitle} description={toPlatform ? t.support.toPlatform : t.support.toOrganizer} />
+      <CardHeader as="h1" id="new-case-h" title={t.support.newTitle} description={toPlatform ? t.support.toPlatform : t.support.toOrganizer} />
 
       <section aria-labelledby="context-h" className="flex flex-col gap-2 rounded-xl bg-canvas p-4">
         <h3 id="context-h" className="text-sm font-semibold">{t.support.contextTitle}</h3>

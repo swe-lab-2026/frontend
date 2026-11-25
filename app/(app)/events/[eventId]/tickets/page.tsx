@@ -96,7 +96,7 @@ export default function TicketsPage() {
         {ticketTypes && ticketTypes.length === 0 ? (
           <p className="py-6 text-center text-[15px] text-muted">{t.event.noTicketTypes}</p>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-line-soft">
+          <div className="relative overflow-x-auto rounded-xl border border-line-soft">
             <table className="w-full min-w-[960px] border-collapse text-sm">
               <thead>
                 <tr className="bg-[#f7f8f9] text-left text-muted">

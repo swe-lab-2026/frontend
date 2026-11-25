@@ -146,13 +146,14 @@ export function Card({ className, children, ...rest }: React.HTMLAttributes<HTML
   );
 }
 
-export function CardHeader({ title, description, action, id }: { title: React.ReactNode; description?: React.ReactNode; action?: React.ReactNode; id?: string }) {
+/** `as="h1"` when the card is the whole page. */
+export function CardHeader({ title, description, action, id, as: Heading = "h2" }: { title: React.ReactNode; description?: React.ReactNode; action?: React.ReactNode; id?: string; as?: "h1" | "h2" }) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="flex flex-col gap-1">
-        <h2 id={id} className="text-xl font-bold">
+        <Heading id={id} className="text-xl font-bold">
           {title}
-        </h2>
+        </Heading>
         {description && <p className="text-sm text-muted">{description}</p>}
       </div>
       {action}

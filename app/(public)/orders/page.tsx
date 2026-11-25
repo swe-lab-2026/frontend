@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { Suspense } from "react";
+import { RequireAuth } from "@/components/support/RequireAuth";
 import { Alert, Badge, LinkButton, PageLoader } from "@/components/ui";
 import { catalogApi, ordersApi } from "@/lib/api/endpoints";
 import type { Order } from "@/lib/api/types";
-import { useAuth } from "@/lib/auth/AuthProvider";
 import { formatDateTime } from "@/lib/datetime";
 import { errorMessage } from "@/lib/errors";
 import { fmt, useI18n } from "@/lib/i18n/I18nProvider";
@@ -15,16 +14,13 @@ import { orderEventTitle, orderTone, ticketCount } from "@/lib/tickets";
 import { useApi } from "@/lib/useApi";
 
 export default function OrdersPage() {
-  const { status } = useAuth();
-  const { t } = useI18n();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (status === "anonymous") router.replace(`/login?next=${encodeURIComponent("/orders")}`);
-  }, [status, router]);
-
-  if (status !== "authenticated") return <PageLoader label={t.common.loading} />;
-  return <OrderHistory />;
+  return (
+    <Suspense>
+      <RequireAuth>
+        <OrderHistory />
+      </RequireAuth>
+    </Suspense>
+  );
 }
 
 type Row = { order: Order; title: string | null; timezone: string };

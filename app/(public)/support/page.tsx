@@ -14,7 +14,7 @@ function Support() {
   return (
     <Card aria-labelledby="support-h" className="mx-auto w-full max-w-[880px]">
       <title>{`${t.support.title} — BiletFlow`}</title>
-      <CardHeader id="support-h" title={t.support.title} description={t.support.hint} action={<LinkButton href="/support/new">{t.support.newCase}</LinkButton>} />
+      <CardHeader as="h1" id="support-h" title={t.support.title} description={t.support.hint} action={<LinkButton href="/support/new">{t.support.newCase}</LinkButton>} />
       <div role="group" aria-label={t.support.title} className="flex flex-wrap gap-2">
         {(["requester", "handler"] as const).map((value) => (
           <button

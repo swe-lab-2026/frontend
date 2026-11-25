@@ -14,7 +14,7 @@ export default function Home() {
 
   useEffect(() => {
     if (status === "authenticated") router.replace("/events");
-    if (status === "anonymous") router.replace("/catalog");
+    if (status === "anonymous" || status === "unreachable") router.replace("/catalog");
   }, [status, router]);
 
   return <PageLoader label={t.common.loading} />;

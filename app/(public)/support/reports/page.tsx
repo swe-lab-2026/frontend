@@ -37,7 +37,7 @@ function MyReports() {
       <BackLink href="/support">{t.support.title}</BackLink>
       <Card aria-labelledby="reports-h" className="mx-auto w-full max-w-[880px]">
         <title>{`${t.reports.mine} — BiletFlow`}</title>
-        <CardHeader id="reports-h" title={t.reports.mine} description={t.reports.mineHint} />
+        <CardHeader as="h1" id="reports-h" title={t.reports.mine} description={t.reports.mineHint} />
         {error && !data ? (
           <Alert tone="error">
             {errorMessage(error, t)}{" "}

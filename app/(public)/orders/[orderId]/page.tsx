@@ -1,17 +1,17 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { Suspense, useCallback, useState } from "react";
 import { PendingCheckout } from "@/components/checkout/PendingCheckout";
 import { PriceSummary } from "@/components/checkout/PriceSummary";
 import { AddToCalendar } from "@/components/events/AddToCalendar";
 import { RefundDetails } from "@/components/refunds/RefundDetails";
+import { RequireAuth } from "@/components/support/RequireAuth";
 import { TicketCard } from "@/components/tickets/TicketCard";
 import { Alert, BackLink, Badge, Button, CheckIcon, LinkButton, PageLoader } from "@/components/ui";
 import { ApiError } from "@/lib/api/client";
 import { catalogApi, ordersApi, ticketsApi } from "@/lib/api/endpoints";
 import type { Event, Order, Refund, RefundEligibility } from "@/lib/api/types";
-import { useAuth } from "@/lib/auth/AuthProvider";
 import { canRetry, retryHref } from "@/lib/checkout";
 import { DEFAULT_TIMEZONE, formatDateTime } from "@/lib/datetime";
 import { errorMessage } from "@/lib/errors";
@@ -21,19 +21,16 @@ import { formatMoney } from "@/lib/registration";
 import { canCancelOrder, isOrderConfirmed, orderTone } from "@/lib/tickets";
 import { useApi } from "@/lib/useApi";
 
+// Orders are private to their buyer: sign in first, then come back here.
 export default function OrderPage() {
-  const { status } = useAuth();
-  const { t } = useI18n();
-  const router = useRouter();
   const { orderId } = useParams<{ orderId: string }>();
-
-  // Orders are private to their buyer: sign in first, then come back here.
-  useEffect(() => {
-    if (status === "anonymous") router.replace(`/login?next=${encodeURIComponent(`/orders/${orderId}`)}`);
-  }, [status, router, orderId]);
-
-  if (status !== "authenticated") return <PageLoader label={t.common.loading} />;
-  return <OrderDetails orderId={orderId} />;
+  return (
+    <Suspense>
+      <RequireAuth>
+        <OrderDetails orderId={orderId} />
+      </RequireAuth>
+    </Suspense>
+  );
 }
 
 function hiddenEvent(error: unknown): null {
