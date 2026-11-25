@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { TicketTypeForm } from "@/components/events/TicketTypeForm";
+import { PaidSalesNotice } from "@/components/paid-sales/PaidSalesNotice";
 import { Alert, Badge, Button, PageLoader, PlusIcon } from "@/components/ui";
 import { eventsApi, ticketTypesApi } from "@/lib/api/endpoints";
 import type { EventInventory, TicketType, TicketTypeInventory } from "@/lib/api/types";
@@ -77,6 +78,8 @@ export default function TicketsPage() {
       )}
 
       {Boolean(error || loadError) && <Alert tone="error">{error ?? errorMessage(loadError, t)}</Alert>}
+
+      {ticketTypes && <PaidSalesNotice event={event} ticketTypes={ticketTypes} />}
 
       <section aria-labelledby="tt-h" className="flex flex-col gap-4 rounded-2xl bg-surface p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">

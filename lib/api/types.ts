@@ -80,6 +80,24 @@ export type PayoutAccount = {
   updated_at: string;
 };
 
+/** The paid-sales checklist of one event (SRS 4.5). */
+export type PaidSalesActivation = {
+  event_id: string;
+  verification_complete: boolean;
+  payout_account_complete: boolean;
+  activation_fee_amount: string;
+  activation_fee_paid: boolean;
+  terms_accepted: boolean;
+  is_activated: boolean;
+  activated_at: string | null;
+  sales_suspended: boolean;
+  sales_suspended_at: string | null;
+  sales_suspension_reason: string | null;
+  event_suspended: boolean;
+  /** Buyers can pay right now. */
+  paid_sales_open: boolean;
+};
+
 export type EventVisibility = "PUBLIC" | "UNLISTED" | "PRIVATE";
 export type EventStatus = "DRAFT" | "PUBLISHED" | "UNPUBLISHED" | "CANCELLED" | "COMPLETED";
 

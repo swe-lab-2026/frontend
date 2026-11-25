@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { Alert, Badge, Button, Card, CardHeader, CheckIcon, Checkbox, Field, Input, PageLoader, Select } from "@/components/ui";
-import { organizersApi, usersApi } from "@/lib/api/endpoints";
+import { fetchPayoutAccount, organizersApi, usersApi } from "@/lib/api/endpoints";
 import type { OrganizerProfile, PayoutAccount } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { errorMessage, fieldErrors } from "@/lib/errors";
 import { fmt, useI18n } from "@/lib/i18n/I18nProvider";
+import { useApi } from "@/lib/useApi";
 import { useOrganizerProfile } from "@/lib/useOrganizerProfile";
 import { EMAIL_RE } from "@/lib/validation";
 
@@ -191,9 +192,7 @@ function OrganizerCard({ profile, onSaved }: { profile: OrganizerProfile | null;
 
 function PayoutCard() {
   const { t } = useI18n();
-  // The backend has no GET for payout accounts yet, so we can only show the
-  // account returned by the last save in this session.
-  const [current, setCurrent] = useState<PayoutAccount | null>(null);
+  const { data: current, error: loadError, reload } = useApi<PayoutAccount | null>(fetchPayoutAccount, []);
   const [provider, setProvider] = useState("demo-bank");
   const [accountRef, setAccountRef] = useState("");
   const [isDefault, setIsDefault] = useState(true);
@@ -211,7 +210,8 @@ function PayoutCard() {
     setError(undefined);
     setSaving(true);
     try {
-      setCurrent(await organizersApi.upsertPayoutAccount({ provider, external_account_ref: accountRef.trim(), is_default: isDefault }));
+      await organizersApi.upsertPayoutAccount({ provider, external_account_ref: accountRef.trim(), is_default: isDefault });
+      reload();
       setAccountRef("");
       setFeedback({ tone: "success", text: t.common.saved });
     } catch (err) {
@@ -222,7 +222,7 @@ function PayoutCard() {
   }
 
   return (
-    <Card aria-labelledby="payout-h">
+    <Card id="payout" aria-labelledby="payout-h" className="scroll-mt-6">
       <CardHeader
         id="payout-h"
         title={
@@ -233,16 +233,18 @@ function PayoutCard() {
         description={t.profile.payoutHint}
       />
       {feedback && <Alert tone={feedback.tone}>{feedback.text}</Alert>}
+      {loadError !== null && <Alert tone="error">{errorMessage(loadError, t)}</Alert>}
       {current && (
         <div className="flex items-center gap-3.5 rounded-xl border border-line p-4">
           <span className="flex-1 text-[15px] font-semibold">
             {fmt(t.profile.currentPayout, { provider: current.provider, ref: current.external_account_ref })}
           </span>
-          <Badge tone={current.status === "ACTIVE" ? "success" : "neutral"}>
+          <Badge tone={current.status === "ACTIVE" ? "success" : current.status === "BLOCKED" ? "danger" : "warning"}>
             {(t.payoutStatus as Record<string, string>)[current.status] ?? current.status}
           </Badge>
         </div>
       )}
+      {current && current.status === "PENDING" && <p className="text-sm text-muted">{t.profile.payoutPending}</p>}
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label={t.profile.provider}>

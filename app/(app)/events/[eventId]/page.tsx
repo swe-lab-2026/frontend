@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { PaidSalesNotice } from "@/components/paid-sales/PaidSalesNotice";
 import { Alert, Button, CrossIcon, Field, Input, PageLoader } from "@/components/ui";
 import { eventAdminsApi, eventsApi } from "@/lib/api/endpoints";
 import type { EventAdmin, EventInventory, EventPreview } from "@/lib/api/types";
@@ -89,6 +90,7 @@ function PublishChecklist() {
           </ul>
         </>
       )}
+      {preview && <PaidSalesNotice event={event} ticketTypes={preview.ticket_types} />}
     </section>
   );
 }

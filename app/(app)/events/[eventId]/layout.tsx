@@ -71,6 +71,7 @@ export default function EventLayout({ children }: LayoutProps<"/">) {
     { href: base, label: t.event.tabs.overview },
     { href: `${base}/edit`, label: t.event.tabs.details },
     { href: `${base}/tickets`, label: t.event.tabs.tickets },
+    { href: `${base}/paid-sales`, label: t.paidSales.tab },
     { href: `${base}/attendees`, label: t.attendees.tab },
     { href: `${base}/campaigns`, label: t.campaigns.tab },
     { href: `${base}/analytics`, label: t.analytics.tab },
