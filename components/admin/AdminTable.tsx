@@ -26,7 +26,7 @@ export type AdminSection<T> = {
   rowKey: (row: T) => string | number;
   columns: Column<T>[];
   searchHint?: string;
-  filter?: { param: string; label: string; options: { value: string; label: string }[] };
+  filters?: { param: string; label: string; options: { value: string; label: string }[] }[];
   actions?: (row: T, reload: () => void) => React.ReactNode;
 };
 
@@ -36,12 +36,12 @@ export function AdminTable<T>({ section }: { section: AdminSection<T> }) {
   const { t } = useI18n();
   const [input, setInput] = useState("");
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState("");
+  const [chosen, setChosen] = useState<Record<string, string | undefined>>({});
   const [offset, setOffset] = useState(0);
   const [exporting, setExporting] = useState(false);
   const [notice, setNotice] = useState<{ tone: "error" | "warning"; text: string } | null>(null);
 
-  const query = { q: q || undefined, ...(section.filter && filter ? { [section.filter.param]: filter } : {}) };
+  const query = { q: q || undefined, ...chosen };
   const key = JSON.stringify([section.key, query, offset]);
   const { data, error, reload } = useApi<{ key: string; page: Page<T> }>(
     () => section.load({ ...query, limit: PAGE, offset }).then((page) => ({ key, page })),
@@ -91,16 +91,23 @@ export function AdminTable<T>({ section }: { section: AdminSection<T> }) {
             <Button type="submit" variant="secondary" className="h-12">{t.support.find}</Button>
           </form>
         )}
-        {section.filter && (
-          <Field label={section.filter.label} className="flex-[1_1_180px] sm:max-w-[240px]">
+        {section.filters?.map(({ param, label, options }) => (
+          <Field key={param} label={label} className="flex-[1_1_180px] sm:max-w-[240px]">
             {(props) => (
-              <Select {...props} value={filter} onChange={(e) => { setOffset(0); setFilter(e.target.value); }}>
+              <Select
+                {...props}
+                value={chosen[param] ?? ""}
+                onChange={(e) => {
+                  setOffset(0);
+                  setChosen({ ...chosen, [param]: e.target.value || undefined });
+                }}
+              >
                 <option value="">{t.support.any}</option>
-                {section.filter?.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </Select>
             )}
           </Field>
-        )}
+        ))}
       </div>
 
       {notice && <Alert tone={notice.tone}>{notice.text}</Alert>}
@@ -120,7 +127,8 @@ export function AdminTable<T>({ section }: { section: AdminSection<T> }) {
               <thead>
                 <tr className="bg-[#f7f8f9] text-left text-muted">
                   {section.columns.map((c) => <th key={c.label} scope="col" className="px-3 py-3 font-semibold">{c.label}</th>)}
-                  {section.actions && <th scope="col" className="px-3 py-3"><span className="sr-only">{t.common.actions}</span></th>}
+                  {/* Stays in view when the table is wider than the screen. */}
+                  {section.actions && <th scope="col" className="sm:sticky sm:right-0 bg-[#f7f8f9] px-3 py-3"><span className="sr-only">{t.common.actions}</span></th>}
                 </tr>
               </thead>
               <tbody>
@@ -129,7 +137,7 @@ export function AdminTable<T>({ section }: { section: AdminSection<T> }) {
                     {section.columns.map((c) => (
                       <td key={c.label} className="max-w-[260px] break-words px-3 py-3">{c.render ? c.render(row) : c.value(row) || "—"}</td>
                     ))}
-                    {section.actions && <td className="px-3 py-2 text-right">{section.actions(row, reload)}</td>}
+                    {section.actions && <td className="sm:sticky sm:right-0 min-w-[150px] bg-surface px-3 py-2 text-right">{section.actions(row, reload)}</td>}
                   </tr>
                 ))}
               </tbody>

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Suspense, useState } from "react";
 import { CaseList } from "@/components/support/CaseList";
 import { RequireAuth } from "@/components/support/RequireAuth";
@@ -27,6 +28,7 @@ function Support() {
           </button>
         ))}
       </div>
+      <Link href="/support/reports" className="w-fit text-sm font-semibold text-brand-ink hover:underline">{t.reports.mine}</Link>
       <CaseList key={role} query={{ role }} empty={role === "requester" ? t.support.emptyMine : t.support.emptyHandle} />
     </Card>
   );

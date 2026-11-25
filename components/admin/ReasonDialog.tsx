@@ -11,12 +11,16 @@ type Props = {
   consequence: string;
   confirmLabel: string;
   danger: boolean;
+  /** The reason may be left empty. */
+  optional?: boolean;
+  hint?: string;
+  maxLength?: number;
   onConfirm: (reason: string) => Promise<void>;
   onClose: () => void;
 };
 
 /** Explicit confirmation with a reason; the reason is stored in the audit log. */
-export function ReasonDialog({ title, consequence, confirmLabel, danger, onConfirm, onClose }: Props) {
+export function ReasonDialog({ title, consequence, confirmLabel, danger, optional = false, hint, maxLength = 1000, onConfirm, onClose }: Props) {
   const { t } = useI18n();
   const ref = useRef<HTMLDialogElement>(null);
   const [reason, setReason] = useState("");
@@ -52,12 +56,12 @@ export function ReasonDialog({ title, consequence, confirmLabel, danger, onConfi
         <h2 id="reason-h" className="break-words text-xl font-bold">{title}</h2>
         <p className="text-[15px] text-ink-2">{consequence}</p>
         {error !== null && <Alert tone="error">{errorMessage(error, t)}</Alert>}
-        <Field label={t.admin.reason} hint={t.admin.reasonHint}>
-          {(props) => <Textarea {...props} rows={3} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={1000} />}
+        <Field label={t.admin.reason} hint={hint ?? t.admin.reasonHint} optionalLabel={optional ? t.common.optional : undefined}>
+          {(props) => <Textarea {...props} rows={3} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={maxLength} />}
         </Field>
         <div className="flex flex-wrap justify-end gap-3">
           <Button variant="secondary" disabled={busy} onClick={() => ref.current?.close()}>{t.common.cancel}</Button>
-          <Button type="submit" variant={danger ? "danger" : "primary"} loading={busy} disabled={reason.trim().length < 3}>{confirmLabel}</Button>
+          <Button type="submit" variant={danger ? "danger" : "primary"} loading={busy} disabled={!optional && reason.trim().length < 3}>{confirmLabel}</Button>
         </div>
       </form>
     </dialog>

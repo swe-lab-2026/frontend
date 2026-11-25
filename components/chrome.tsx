@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { LOCALE_LABELS, LOCALES, type Locale, useI18n } from "@/lib/i18n/I18nProvider";
 
@@ -102,6 +103,7 @@ export function AppHeader() {
         </div>
         <div className="flex items-center gap-2">
           <LanguageSwitcher />
+          {user && <NotificationBell />}
           {user && (
             <span
               className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft text-sm font-bold text-brand-ink"
@@ -182,6 +184,7 @@ export function SiteHeader() {
         </div>
         <div className="flex items-center gap-2">
           <LanguageSwitcher />
+          {status === "authenticated" && <NotificationBell />}
           {status === "authenticated" ? (
             <button
               type="button"

@@ -5,19 +5,17 @@ import { Alert, PageLoader } from "@/components/ui";
 import { eventsApi } from "@/lib/api/endpoints";
 import type { Event } from "@/lib/api/types";
 import { errorMessage } from "@/lib/errors";
-import { type DayRange, mapLimited, rangeQuery, salesBuckets } from "@/lib/history";
+import { type DayRange, rangeQuery, salesBuckets, type SalesBucket as Point, sumByBucket } from "@/lib/history";
 import { fmt, useI18n } from "@/lib/i18n/I18nProvider";
 import { formatMoney } from "@/lib/registration";
 import { useApi } from "@/lib/useApi";
 
-type Point = DayRange & { revenue: string; tickets: number };
-
 async function loadSeries(event: Event, range: DayRange, typeId: string | undefined): Promise<Point[]> {
-  return mapLimited(salesBuckets(range, event.timezone, new Date()), 4, async (bucket) => {
-    const data = await eventsApi.analytics(event.id, { ...rangeQuery(bucket, event.timezone), ticket_type_id: typeId });
-    const kzt = data.sales.find((row) => row.currency === "KZT");
-    return { ...bucket, revenue: kzt?.gross_revenue ?? "0.00", tickets: data.sales.reduce((sum, row) => sum + row.tickets_sold, 0) };
-  });
+  const buckets = salesBuckets(range, event.timezone, new Date());
+  if (buckets.length === 0) return [];
+  const period = { from: buckets[0].from, to: buckets[buckets.length - 1].to };
+  const data = await eventsApi.analytics(event.id, { ...rangeQuery(period, event.timezone), ticket_type_id: typeId });
+  return sumByBucket(buckets, data.sales_over_time);
 }
 
 const HEIGHT = 180;
@@ -84,7 +82,7 @@ export function SalesChart({ event, range, typeId, refresh }: { event: Event; ra
             <tr className="text-left text-muted">
               <th scope="col" className="py-1.5 font-semibold">{t.analytics.period}</th>
               <th scope="col" className="py-1.5 text-right font-semibold">{t.inventory.sold}</th>
-              <th scope="col" className="py-1.5 text-right font-semibold">{t.analytics.charged}</th>
+              <th scope="col" className="py-1.5 text-right font-semibold">{t.analytics.gross}</th>
             </tr>
           </thead>
           <tbody>

@@ -14,30 +14,33 @@ import { useEventContext } from "../EventContext";
 
 export default function AttendeesPage() {
   const { t, intlLocale } = useI18n();
-  const { event, version } = useEventContext();
+  const { event, version, invalidate } = useEventContext();
   // The backend caps one page at 500, which covers MVP-sized events.
   const { data: attendees, error, reload } = useApi<EventAttendee[]>(() => eventsApi.attendees(event.id), [event.id, version]);
   const [query, setQuery] = useState("");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ tone: "success" | "error"; text: string } | null>(null);
-  const eventStarted = new Date(event.starts_at) <= new Date();
 
-  // Free registrations only: for a paid order the same request is a full
-  // refund, which has no screen yet (SRS 4.9). It always covers the whole order.
-  async function cancelRegistration(people: EventAttendee[]) {
+  // Both always cover the whole order (SRS 4.9): a free registration is
+  // cancelled, a paid order is refunded in full. The organizer may do it at any
+  // time; the server refuses once a ticket of the order was used for entry.
+  async function closeOrder(people: EventAttendee[]) {
     const [a] = people;
+    const paid = Number(a.total_amount) > 0;
+    const amount = formatMoney(a.total_amount, a.currency, intlLocale);
     const names = people.map((person) => person.full_name || person.email);
-    const question =
-      people.length > 1
+    const question = paid
+      ? fmt(t.attendees.confirmRefund, { number: a.order_number, amount, count: people.reduce((sum, person) => sum + person.ticket_count, 0) })
+      : people.length > 1
         ? fmt(t.attendees.confirmCancelOrder, { number: a.order_number, count: people.length, names: names.join(", ") })
         : fmt(t.attendees.confirmCancel, { name: names[0] });
     if (!window.confirm(question)) return;
     setCancellingId(a.order_id);
     setNotice(null);
     try {
-      await ordersApi.cancel(a.order_id);
-      setNotice({ tone: "success", text: fmt(t.attendees.cancelled, { number: a.order_number }) });
-      reload();
+      await (paid ? ordersApi.refund(a.order_id) : ordersApi.cancel(a.order_id));
+      setNotice({ tone: "success", text: fmt(paid ? t.attendees.refunded : t.attendees.cancelled, { number: a.order_number, amount }) });
+      invalidate();
     } catch (err) {
       setNotice({ tone: "error", text: errorMessage(err, t) });
     } finally {
@@ -132,22 +135,22 @@ export default function AttendeesPage() {
                               {formatDateTime(a.registered_at, event.timezone, intlLocale)}
                             </td>
                             <td rowSpan={people.length} className="px-4 py-2 text-right">
-                              {Number(a.total_amount) === 0 && !eventStarted && (
-                                <Button
-                                  variant="ghost"
-                                  className="text-danger-ink"
-                                  loading={cancellingId === order_id}
-                                  disabled={cancellingId !== null}
-                                  onClick={() => cancelRegistration(people)}
-                                  aria-label={
-                                    people.length > 1
-                                      ? fmt(t.attendees.cancelOrder, { number: a.order_number })
-                                      : fmt(t.attendees.cancelFor, { name: a.full_name || a.email })
-                                  }
-                                >
-                                  {t.attendees.cancel}
-                                </Button>
-                              )}
+                              <Button
+                                variant="ghost"
+                                className="text-danger-ink"
+                                loading={cancellingId === order_id}
+                                disabled={cancellingId !== null}
+                                onClick={() => closeOrder(people)}
+                                aria-label={
+                                  Number(a.total_amount) > 0
+                                    ? fmt(t.attendees.refundOrder, { number: a.order_number })
+                                    : people.length > 1
+                                    ? fmt(t.attendees.cancelOrder, { number: a.order_number })
+                                    : fmt(t.attendees.cancelFor, { name: a.full_name || a.email })
+                                }
+                              >
+                                {Number(a.total_amount) > 0 ? t.attendees.refund : t.attendees.cancel}
+                              </Button>
                             </td>
                           </>
                         )}

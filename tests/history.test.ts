@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AuditEntry } from "@/lib/api/types";
-import { changedFields, eventPhase, isBadRange, mapLimited, rangeQuery, salesBuckets, scalarChanges, statusChange, updatedFields } from "@/lib/history";
+import { changedFields, eventPhase, isBadRange, isConfidential, mapLimited, rangeQuery, salesBuckets, scalarChanges, statusChange, sumByBucket, updatedFields } from "@/lib/history";
 
 const NOW = new Date("2026-11-10T12:00:00Z");
 const entry = (over: Partial<AuditEntry>): AuditEntry => ({
@@ -88,4 +88,25 @@ describe("changes", () => {
   it("lists only changed fields", () => expect(changedFields(changed)).toEqual(["price"]));
   it("shows old and new values", () => expect(scalarChanges(changed, ["price"])).toEqual(["10.00 → 12.00"]));
   it("ignores entries without both sides", () => expect(changedFields(entry({ after: { status: "PUBLISHED" } }))).toEqual([]));
+});
+
+describe("sumByBucket", () => {
+  const points = [
+    { date: "2026-11-01", currency: "KZT", orders: 1, tickets: 2, gross: "1000.50" },
+    { date: "2026-11-03", currency: "KZT", orders: 1, tickets: 1, gross: "500.00" },
+    { date: "2026-11-03", currency: "USD", orders: 1, tickets: 4, gross: "90.00" },
+    { date: "2026-11-09", currency: "KZT", orders: 1, tickets: 9, gross: "9.00" },
+  ];
+  it("adds the days of a bucket, ends included, and never mixes currencies", () =>
+    expect(sumByBucket([{ from: "2026-11-01", to: "2026-11-03" }], points)).toEqual([{ from: "2026-11-01", to: "2026-11-03", revenue: 1500.5, tickets: 7 }]));
+  it("keeps days without sales at zero", () =>
+    expect(sumByBucket([{ from: "2026-11-02", to: "2026-11-02" }], points)[0]).toMatchObject({ revenue: 0, tickets: 0 }));
+});
+
+describe("isConfidential", () => {
+  it("keeps reports on an event away from its organizer", () => {
+    expect(isConfidential({ action: "event.reported" })).toBe(true);
+    expect(isConfidential({ action: "admin.event_report_updated" })).toBe(true);
+    expect(isConfidential({ action: "admin.event_suspended" })).toBe(false);
+  });
 });

@@ -75,6 +75,7 @@ export function onSessionExpired(listener: Listener): () => void {
 
 type RequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+  /** Sent as JSON, except FormData, which is sent as multipart. */
   body?: unknown;
   auth?: boolean;
   /** An array is sent as a repeated parameter (?status=A&status=B). */
@@ -105,12 +106,14 @@ function buildUrl(path: string, query?: RequestOptions["query"]): string {
 
 async function send(path: string, options: RequestOptions, token: string | null) {
   const headers: Record<string, string> = { Accept: "application/json" };
-  if (options.body !== undefined) headers["Content-Type"] = "application/json";
+  // The browser sets the multipart boundary itself.
+  const multipart = options.body instanceof FormData;
+  if (options.body !== undefined && !multipart) headers["Content-Type"] = "application/json";
   if (token) headers.Authorization = `Bearer ${token}`;
   return fetch(buildUrl(path, options.query), {
     method: options.method ?? "GET",
     headers,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    body: options.body === undefined ? undefined : multipart ? (options.body as FormData) : JSON.stringify(options.body),
   });
 }
 

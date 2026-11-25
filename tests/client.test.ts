@@ -34,6 +34,17 @@ describe("apiRequest", () => {
     expect(error.fieldErrors()).toEqual({ title: "must not be blank" });
   });
 
+  it("sends a file as multipart, letting the browser set the boundary", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () => json(201, { object_key: "k" }));
+    vi.stubGlobal("fetch", fetchMock);
+    const form = new FormData();
+    form.append("file", new Blob(["x"], { type: "image/png" }), "a.png");
+    await apiRequest("/events/1/images/upload", { method: "POST", body: form });
+    const init = fetchMock.mock.calls[0][1]!;
+    expect(init.body).toBe(form);
+    expect(init.headers).not.toHaveProperty("Content-Type");
+  });
+
   it("refreshes once for concurrent 401s and retries both requests", async () => {
     tokenStore.set({ access_token: "old", refresh_token: "r1", token_type: "bearer", expires_in: 900 });
     let refreshCalls = 0;
