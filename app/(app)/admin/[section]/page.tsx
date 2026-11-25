@@ -10,7 +10,7 @@ import { ReasonDialog } from "@/components/admin/ReasonDialog";
 import { Alert, Badge, Button } from "@/components/ui";
 import { canDispute, disputeMoves, reportMoves } from "@/lib/adminFlow";
 import { adminApi } from "@/lib/api/endpoints";
-import { type AdminDispute, type AdminEvent, type AdminEventReport, type AdminPayment, type AdminUser, REPORT_REASONS } from "@/lib/api/types";
+import { type AdminDispute, type AdminEvent, type AdminEventReport, type AdminPayment, type AdminPayoutAccount, type AdminUser, REPORT_REASONS } from "@/lib/api/types";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { campaignTone, discountLabel } from "@/lib/campaigns";
 import { DEFAULT_TIMEZONE, formatDateTime } from "@/lib/datetime";
@@ -106,6 +106,44 @@ function Section({ name }: { name: AdminSectionKey }) {
                 </Button>
               );
             })}
+      </div>
+    );
+  };
+
+  const payoutActions = (row: AdminPayoutAccount, reload: () => void) => {
+    const name = row.organizer.name || row.organizer_email || row.organizer.id;
+    const account = `${row.provider} · ${row.external_account_ref}`;
+    return (
+      <div className="flex flex-col items-end gap-1.5">
+        {(["ACTIVE", "BLOCKED"] as const)
+          .filter((target) => target !== row.status)
+          .map((target) => {
+            const approve = target === "ACTIVE";
+            const action = approve ? t.admin.approvePayout : t.admin.blockPayout;
+            return (
+              <Button
+                key={target}
+                variant={approve ? "secondary" : "danger-outline"}
+                className={ACTION}
+                aria-label={`${action}: ${name}, ${account}`}
+                onClick={() =>
+                  setDialog({
+                    reload,
+                    title: fmt(approve ? t.admin.approvePayoutTitle : t.admin.blockPayoutTitle, { name }),
+                    consequence: fmt(approve ? t.admin.approvePayoutText : t.admin.blockPayoutText, { account }),
+                    confirmLabel: action,
+                    danger: !approve,
+                    run: async (reason) => {
+                      await adminApi.setPayoutStatus(row.id, target, reason);
+                      return fmt(t.admin.payoutChanged, { name, status: t.payoutStatus[target] });
+                    },
+                  })
+                }
+              >
+                {action}
+              </Button>
+            );
+          })}
       </div>
     );
   };
@@ -274,6 +312,7 @@ function Section({ name }: { name: AdminSectionKey }) {
           key: name,
           title: t.admin.sections.users,
           load: adminApi.users,
+          serverExport: "users",
           rowKey: (r) => r.user_id,
           searchHint: t.admin.searchUsers,
           filters: [{ param: "status", label: c.status, options: options(t.admin.userStatus, ["ACTIVE", "BLOCKED", "DELETED"]) }],
@@ -298,6 +337,7 @@ function Section({ name }: { name: AdminSectionKey }) {
           key: name,
           title: t.admin.sections.events,
           load: adminApi.events,
+          serverExport: "events",
           rowKey: (r) => r.id,
           searchHint: t.admin.searchEvents,
           filters: [{ param: "status", label: c.status, options: options(t.status, ["DRAFT", "PUBLISHED", "UNPUBLISHED", "CANCELLED", "COMPLETED"]) }],
@@ -324,6 +364,7 @@ function Section({ name }: { name: AdminSectionKey }) {
           key: name,
           title: t.admin.sections.orders,
           load: adminApi.orders,
+          serverExport: "orders",
           rowKey: (r) => r.id,
           searchHint: t.admin.searchOrders,
           filters: [{ param: "status", label: c.status, options: options(t.order.status, orderStatuses) }],
@@ -345,6 +386,7 @@ function Section({ name }: { name: AdminSectionKey }) {
           title: t.admin.sections.payments,
           hint: t.admin.demoPayments,
           load: adminApi.payments,
+          serverExport: "payments",
           rowKey: (r) => r.id,
           searchHint: t.admin.searchPayments,
           filters: [{ param: "status", label: c.status, options: options(t.history.paymentStatus, paymentStatuses) }],
@@ -378,6 +420,31 @@ function Section({ name }: { name: AdminSectionKey }) {
             { label: c.activated, value: (r) => date(r.activated_at) },
             { label: t.admin.reason, value: (r) => r.sales_suspension_reason ?? "" },
           ],
+        });
+      case "payouts":
+        return define({
+          key: name,
+          title: t.admin.sections.payouts,
+          hint: t.admin.payoutsHint,
+          load: adminApi.payoutAccounts,
+          rowKey: (r) => r.id,
+          searchHint: t.admin.searchPayouts,
+          filters: [{ param: "status", label: c.status, options: options(t.payoutStatus, ["PENDING", "ACTIVE", "BLOCKED"]) }],
+          columns: [
+            { label: c.organizer, value: (r) => r.organizer.name },
+            { label: c.email, value: (r) => r.organizer_email ?? "" },
+            { label: t.profile.verificationStatus, value: (r) => label(t.verification, r.organizer_verification_status) },
+            { label: t.profile.provider, value: (r) => r.provider },
+            { label: c.account, value: (r) => r.external_account_ref },
+            { label: c.isDefault, value: (r) => (r.is_default ? t.common.yes : t.common.no) },
+            {
+              label: c.status,
+              value: (r) => label(t.payoutStatus, r.status),
+              render: (r) => <Badge tone={r.status === "ACTIVE" ? "success" : r.status === "BLOCKED" ? "danger" : "warning"}>{label(t.payoutStatus, r.status)}</Badge>,
+            },
+            { label: c.updated, value: (r) => date(r.updated_at) },
+          ],
+          actions: payoutActions,
         });
       case "refunds":
         return define({

@@ -104,6 +104,8 @@ const kk: Dictionary = {
     price: "Теріс емес баға, үтірден кейін 2 таңбадан аспайды",
   },
   errors: {
+    VERIFICATION_REJECTED: "Платформа тексеруіңізді қабылдамады, сондықтан демо-растау қолжетімсіз. Платформа қолдауына жазыңыз.",
+    PAYOUT_ACCOUNT_BLOCKED: "Платформа төлем шоттарыңыздың бірін бұғаттады, сондықтан демо-растау қолжетімсіз. Платформа қолдауына жазыңыз.",
     REFUNDS_DISABLED: "Ұйымдастырушы бұл іс-шара билеттерінің ақшасын қайтармайды.",
     REFUND_DEADLINE_PASSED: "Бұл іс-шара билеттерін қайтару мерзімі өтті.",
     REFUND_IN_PROGRESS: "Бұл төлем бойынша қайтару рәсімделген.",
@@ -240,6 +242,8 @@ const kk: Dictionary = {
     filterLabel: "Мәртебе бойынша сүзгі",
   },
   profile: {
+    emailLanguage: "Хаттар тілі",
+    emailLanguageHint: "Аккаунт пен тапсырыс туралы хаттар үшін.",
     title: "Профиль",
     account: "Аккаунт",
     accountHint: "Жеке деректеріңіз.",
@@ -383,6 +387,7 @@ const kk: Dictionary = {
     addButton: "Қосу",
   },
   inventory: {
+    cappedByEvent: "түрі бойынша {count}; сатылым іс-шара сыйымдылығымен шектелген",
     totalSold: "Сатылды",
     totalReserved: "Брондалды",
     totalAvailable: "Қолжетімді",
@@ -638,7 +643,7 @@ const kk: Dictionary = {
   },
   notifications: {
     title: "Хабарландырулар",
-    hint: "Қолдау өтініштері, іс-шараларыңыз және шағымдарыңыз туралы. Тапсырыс хаттары бөлек жіберіледі.",
+    hint: "Қолдау өтініштері, іс-шараларыңыз, төлем шотыңыз және шағымдарыңыз туралы. Тапсырыс хаттары бөлек жіберіледі.",
     all: "Барлығы",
     unreadOnly: "Оқылмаған",
     empty: "Хабарландырулар жоқ.",
@@ -649,6 +654,7 @@ const kk: Dictionary = {
     more: "Тағы көрсету ({total} ішінен {shown})",
     other: "Хабарландыру",
     types: {
+      PAYOUT_STATUS_CHANGED: "Төлем шотының мәртебесі өзгерді",
       SUPPORT_CASE_CREATED: "Жаңа өтініш",
       SUPPORT_MESSAGE_RECEIVED: "Өтініште жаңа хабарлама",
       SUPPORT_CASE_ASSIGNED: "Өтініш тағайындалды",
@@ -817,11 +823,17 @@ const kk: Dictionary = {
     ofLimit: "{count} / {limit}",
   },
   analytics: {
+    payout: "Болжамды төлем (демо)",
+    payoutHint: "жеңілдіктен кейінгі билет бағасы, қайтарылған не тоқтатылған тапсырыстарсыз және комиссиясыз",
+    payoutAllTypes: "барлық билет түрі бойынша бірге көрсетіледі",
+    fees: "Өңдеу комиссиясы",
+    feesHint: "сатып алушылар билет бағасының үстіне төлейді",
+    feesPerOrder: "билет түрінен емес, тапсырыстан алынады",
     gross: "Жеңілдіксіз сатылым",
     discounts: "Жеңілдіктер",
     refunds: "Қайтарулар",
     net: "Таза демо-табыс",
-    netWithFees: "жеңілдік пен қайтарудан кейін, комиссия {fees} қоса",
+    netWithFees: "жеңілдік пен қайтарудан кейін, комиссияны қоса",
     netNoFees: "жеңілдік пен қайтарудан кейін",
     refundCount: "қайтару: {count}",
     ticketCount: "билет: {count}",
@@ -894,6 +906,7 @@ const kk: Dictionary = {
       REFUNDED: "қайтарылды",
     },
     entities: {
+      export: "Экспорт",
       event_report: "Шағым",
       platform_settings: "Платформа баптаулары",
       organizer_profile: "Ұйымдастырушы",
@@ -926,6 +939,7 @@ const kk: Dictionary = {
       refunds_enabled: "қайтарулар",
     },
     actions: {
+      admin_data_exported: "Деректер CSV-ге экспортталды",
       event_image_uploaded: "Сурет жүктелді",
       admin_event_report_updated: "Іс-шара шағымы қаралды",
       admin_platform_settings_updated: "Платформа баптаулары өзгерді",
@@ -1043,6 +1057,15 @@ const kk: Dictionary = {
     },
   },
   admin: {
+    searchPayouts: "Ұйымдастырушы аты немесе email",
+    payoutsHint: "Демо-шоттар. Шот деректемелерінің бір бөлігі ғана көрсетіледі.",
+    approvePayout: "Растау",
+    blockPayout: "Бұғаттау",
+    approvePayoutTitle: "{name} төлем шоты расталсын ба?",
+    approvePayoutText: "Ұйымдастырушы {account} шотымен ақылы сатылымды аша алады және себебі көрсетілген хабарландыру алады.",
+    blockPayoutTitle: "{name} төлем шоты бұғатталсын ба?",
+    blockPayoutText: "Ұйымдастырушы {account} шотымен ақылы сатылым аша алмайды және себебі көрсетілген хабарландыру алады. Ашық сатылым тоқтамайды: оны «Іс-шаралар» бөлімінде тоқтатыңыз.",
+    payoutChanged: "{name}: төлем шотының мәртебесі — «{status}».",
     verify: "Растау",
     reject: "Қабылдамау",
     verifyTitle: "{name} ұйымдастырушысы расталсын ба?",
@@ -1093,6 +1116,7 @@ const kk: Dictionary = {
     title: "Әкімшілік",
     denied: "Бұл бөлім тек платформа әкімшілеріне арналған.",
     sections: {
+      payouts: "Төлем шоттары",
       disputes: "Даулар",
       reports: "Шағымдар",
       settings: "Баптаулар",
@@ -1173,6 +1197,9 @@ const kk: Dictionary = {
       NOTIFICATION: "Хат",
     },
     columns: {
+      account: "Шот",
+      isDefault: "Негізгі",
+      updated: "Жаңартылды",
       payment: "Төлем",
       note: "Шешім түсініктемесі",
       reporter: "Кімнен",

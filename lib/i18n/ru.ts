@@ -103,6 +103,8 @@ const ru: Dictionary = {
     price: "Неотрицательная цена, не более 2 знаков после запятой",
   },
   errors: {
+    VERIFICATION_REJECTED: "Платформа отклонила вашу проверку, поэтому демо-подтверждение недоступно. Обратитесь в поддержку платформы.",
+    PAYOUT_ACCOUNT_BLOCKED: "Платформа заблокировала один из ваших счетов для выплат, поэтому демо-подтверждение недоступно. Обратитесь в поддержку платформы.",
     REFUNDS_DISABLED: "Организатор не возвращает деньги за билеты на это мероприятие.",
     REFUND_DEADLINE_PASSED: "Срок возврата билетов на это мероприятие истёк.",
     REFUND_IN_PROGRESS: "Возврат по этому платежу уже оформлен.",
@@ -239,6 +241,8 @@ const ru: Dictionary = {
     filterLabel: "Фильтр по статусу",
   },
   profile: {
+    emailLanguage: "Язык писем",
+    emailLanguageHint: "Для писем об аккаунте и заказах.",
     title: "Профиль",
     account: "Аккаунт",
     accountHint: "Ваши личные данные.",
@@ -382,6 +386,7 @@ const ru: Dictionary = {
     addButton: "Добавить",
   },
   inventory: {
+    cappedByEvent: "по типу {count}; продажи ограничены вместимостью",
     totalSold: "Продано",
     totalReserved: "Забронировано",
     totalAvailable: "Доступно",
@@ -637,7 +642,7 @@ const ru: Dictionary = {
   },
   notifications: {
     title: "Уведомления",
-    hint: "Об обращениях в поддержку, ваших мероприятиях и жалобах. Письма о заказах приходят отдельно.",
+    hint: "Об обращениях в поддержку, ваших мероприятиях, счёте для выплат и жалобах. Письма о заказах приходят отдельно.",
     all: "Все",
     unreadOnly: "Непрочитанные",
     empty: "У вас нет уведомлений.",
@@ -648,6 +653,7 @@ const ru: Dictionary = {
     more: "Показать ещё ({shown} из {total})",
     other: "Уведомление",
     types: {
+      PAYOUT_STATUS_CHANGED: "Изменён статус счёта для выплат",
       SUPPORT_CASE_CREATED: "Новое обращение",
       SUPPORT_MESSAGE_RECEIVED: "Новое сообщение в обращении",
       SUPPORT_CASE_ASSIGNED: "Обращение назначено",
@@ -816,11 +822,17 @@ const ru: Dictionary = {
     ofLimit: "{count} из {limit}",
   },
   analytics: {
+    payout: "Ожидаемая выплата (демо)",
+    payoutHint: "цена билетов со скидками, без возвращённых и отменённых заказов и комиссии",
+    payoutAllTypes: "показывается по всем типам билетов вместе",
+    fees: "Комиссия за обработку",
+    feesHint: "платят покупатели сверх цены билетов",
+    feesPerOrder: "берётся с заказа, а не с типа билета",
     gross: "Продажи без скидок",
     discounts: "Скидки",
     refunds: "Возвраты",
     net: "Чистая демо-выручка",
-    netWithFees: "после скидок и возвратов, вкл. комиссию {fees}",
+    netWithFees: "после скидок и возвратов, вкл. комиссию",
     netNoFees: "после скидок и возвратов",
     refundCount: "возвратов: {count}",
     ticketCount: "билетов: {count}",
@@ -893,6 +905,7 @@ const ru: Dictionary = {
       REFUNDED: "возвращён",
     },
     entities: {
+      export: "Экспорт",
       event_report: "Жалоба",
       platform_settings: "Настройки платформы",
       organizer_profile: "Организатор",
@@ -925,6 +938,7 @@ const ru: Dictionary = {
       refunds_enabled: "возвраты",
     },
     actions: {
+      admin_data_exported: "Данные выгружены в CSV",
       event_image_uploaded: "Загружено изображение",
       admin_event_report_updated: "Рассмотрена жалоба на мероприятие",
       admin_platform_settings_updated: "Изменены настройки платформы",
@@ -1042,6 +1056,15 @@ const ru: Dictionary = {
     },
   },
   admin: {
+    searchPayouts: "Организатор или email",
+    payoutsHint: "Демо-счета. Реквизиты показаны частично.",
+    approvePayout: "Подтвердить",
+    blockPayout: "Заблокировать",
+    approvePayoutTitle: "Подтвердить счёт для выплат {name}?",
+    approvePayoutText: "Организатор сможет открыть платные продажи со счётом {account} и получит уведомление с вашей причиной.",
+    blockPayoutTitle: "Заблокировать счёт для выплат {name}?",
+    blockPayoutText: "Организатор не сможет открыть платные продажи со счётом {account} и получит уведомление с вашей причиной. Уже открытые продажи не остановятся: остановите их в разделе «Мероприятия».",
+    payoutChanged: "{name}: статус счёта для выплат — «{status}».",
     verify: "Подтвердить",
     reject: "Отклонить",
     verifyTitle: "Подтвердить организатора {name}?",
@@ -1092,6 +1115,7 @@ const ru: Dictionary = {
     title: "Администрирование",
     denied: "Раздел только для администраторов платформы.",
     sections: {
+      payouts: "Счета для выплат",
       disputes: "Споры",
       reports: "Жалобы",
       settings: "Настройки",
@@ -1172,6 +1196,9 @@ const ru: Dictionary = {
       NOTIFICATION: "Письмо",
     },
     columns: {
+      account: "Счёт",
+      isDefault: "Основной",
+      updated: "Обновлён",
       payment: "Платёж",
       note: "Комментарий к решению",
       reporter: "От кого",

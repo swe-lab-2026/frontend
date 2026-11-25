@@ -11,6 +11,7 @@ function id(value: unknown): string | null {
 /** The page a notification is about; null when there is nothing to open. */
 export function notificationHref({ type, payload }: Pick<AppNotification, "type" | "payload">): string | null {
   if (type === "EVENT_REPORT_REVIEWED") return "/support/reports";
+  if (type === "PAYOUT_STATUS_CHANGED") return "/profile#payout";
   if (type.startsWith("SUPPORT_")) {
     const caseId = id(payload.case_id);
     return caseId && `/support/${caseId}`;
@@ -31,7 +32,9 @@ export function notificationText({ type, payload }: Pick<AppNotification, "type"
       ? (t.reports.status as Record<string, string>)[status ?? ""]
       : type === "SUPPORT_CASE_STATUS_CHANGED"
         ? (t.support.status as Record<string, string>)[text(payload.to_status) ?? ""]
-        : undefined;
+        : type === "PAYOUT_STATUS_CHANGED"
+          ? (t.payoutStatus as Record<string, string>)[status ?? ""]
+          : undefined;
   const details = [text(payload.subject) ?? text(payload.title), statusLabel, text(payload.reason)].filter(Boolean).join(" · ");
   return { title, details: details || null };
 }

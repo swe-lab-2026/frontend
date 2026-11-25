@@ -134,7 +134,12 @@ export default function TicketsPage() {
                       <td className="px-3 py-3.5 text-right">{stock?.sold ?? "—"}</td>
                       <td className="px-3 py-3.5 text-right">{stock?.returned ?? "—"}</td>
                       <td className="px-3 py-3.5 text-right">{stock?.checked_in ?? "—"}</td>
-                      <td className="px-3 py-3.5 text-right font-bold">{stock?.available ?? "—"}</td>
+                      <td className="px-3 py-3.5 text-right font-bold">
+                        {stock?.available ?? "—"}
+                        {stock && stock.available < stock.type_remaining && (
+                          <span className="block max-w-[180px] text-[13px] font-normal text-muted">{fmt(t.inventory.cappedByEvent, { count: stock.type_remaining })}</span>
+                        )}
+                      </td>
                       <td className="whitespace-nowrap px-4 py-2 text-right">
                         <Button variant="secondary" className="h-10 px-3 text-sm" onClick={() => setEditing({ mode: "edit", ticketType: tt })}>
                           {t.common.edit}

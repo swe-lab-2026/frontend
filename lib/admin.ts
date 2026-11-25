@@ -13,3 +13,14 @@ export async function loadAll<T>(load: (limit: number, offset: number) => Promis
     if (rows.length >= EXPORT_MAX) return { rows, truncated: true };
   }
 }
+
+const SERVER_EXPORT_MAX = 10_000;
+
+/** The server's CSV has no BOM, without which Excel garbles Cyrillic. */
+export async function readExport({ blob, headers }: { blob: Blob; headers: Headers }): Promise<{ blob: Blob; truncated: boolean; rows: number }> {
+  return {
+    blob: new Blob(["\uFEFF", await blob.arrayBuffer()], { type: "text/csv;charset=utf-8" }),
+    truncated: headers.get("X-Truncated") === "true",
+    rows: Number(headers.get("X-Total-Count") ?? SERVER_EXPORT_MAX),
+  };
+}

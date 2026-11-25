@@ -1,4 +1,4 @@
-import { ApiError, apiBlob, apiRequest } from "./client";
+import { ApiError, apiBlob, apiFile, apiRequest } from "./client";
 import type {
   AdminAction,
   AdminActivation,
@@ -10,6 +10,7 @@ import type {
   AdminFailure,
   AdminOrder,
   AdminPayment,
+  AdminPayoutAccount,
   AdminRefund,
   AdminUser,
   AppNotification,
@@ -23,6 +24,7 @@ import type {
   EventAdmin,
   EventAnalytics,
   EventAttendee,
+  EmailLocale,
   EventCancellation,
   EventImageUpload,
   EventInventory,
@@ -44,6 +46,7 @@ import type {
   PaidSalesActivation,
   PayoutAccount,
   PayoutAccountCreate,
+  PayoutStatus,
   PlatformSettings,
   PromoQuote,
   Refund,
@@ -111,7 +114,7 @@ export const authApi = {
 export const usersApi = {
   me: () => apiRequest<User>("/users/me"),
   reports: (limit: number, offset: number) => apiRequest<Page<EventReport>>("/users/me/reports", { query: { limit, offset } }),
-  updateMe: (body: { first_name?: string; last_name?: string }) =>
+  updateMe: (body: { first_name?: string; last_name?: string; locale?: EmailLocale }) =>
     apiRequest<User>("/users/me", { method: "PATCH", body }),
 };
 
@@ -286,6 +289,9 @@ export const supportApi = {
 
 export type AdminQuery = { q?: string; limit: number; offset: number; [filter: string]: string | number | undefined };
 
+/** The lists the server can export itself. */
+export type AdminExportKind = "users" | "events" | "orders" | "payments";
+
 /** Every route answers 403 unless the caller is a PLATFORM_ADMIN. */
 export const adminApi = {
   users: (query: AdminQuery) => apiRequest<Page<AdminUser>>("/admin/users", { query }),
@@ -307,6 +313,9 @@ export const adminApi = {
     apiRequest<AdminDispute>(`/admin/disputes/${id}`, { method: "PATCH", body: { status, resolution_note: note } }),
   setVerification: (userId: string, status: "VERIFIED" | "REJECTED", reason: string) =>
     apiRequest<OrganizerProfile>(`/admin/organizers/${userId}/verification`, { method: "POST", body: { status, reason } }),
+  payoutAccounts: (query: AdminQuery) => apiRequest<Page<AdminPayoutAccount>>("/admin/payout-accounts", { query }),
+  setPayoutStatus: (accountId: string, status: PayoutStatus, reason: string) =>
+    apiRequest<PayoutAccount>(`/admin/payout-accounts/${accountId}/status`, { method: "POST", body: { status, reason } }),
   reports: (query: AdminQuery) => apiRequest<Page<AdminEventReport>>("/admin/reports", { query }),
   updateReport: (id: string, status: ReportStatus, note?: string, suspendEvent = false) =>
     apiRequest<AdminEventReport>(`/admin/reports/${id}`, {
@@ -314,6 +323,8 @@ export const adminApi = {
       body: { status, resolution_note: note, suspend_event: suspendEvent },
     }),
   campaigns: (query: AdminQuery) => apiRequest<Page<AdminCampaign>>("/admin/campaigns", { query }),
+  /** Recorded in the admin log. `X-Truncated` tells whether the row limit cut the file. */
+  exportCsv: (kind: AdminExportKind, query: { q?: string; status?: string }) => apiFile(`/admin/export/${kind}.csv`, { query }),
   settings: () => apiRequest<PlatformSettings>("/admin/settings"),
   updateSettings: (body: { activation_fee_amount?: string; processing_fee_percent?: string; reason: string | null }) =>
     apiRequest<PlatformSettings>("/admin/settings", { method: "PATCH", body }),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EXPORT_MAX, loadAll } from "@/lib/admin";
+import { EXPORT_MAX, loadAll, readExport } from "@/lib/admin";
 import { toCsv } from "@/lib/csv";
 
 describe("toCsv", () => {
@@ -29,4 +29,19 @@ describe("loadAll", () => {
     expect(truncated).toBe(true);
   });
   it("ends if rows disappear while paging", async () => expect((await loadAll(async () => ({ items: [], total: 5, limit: 100, offset: 0 }))).rows).toEqual([]));
+});
+
+describe("readExport", () => {
+  const read = (headers: Record<string, string>) => readExport({ blob: new Blob(["имя\r\n"]), headers: new Headers(headers) });
+  it("adds the BOM Excel needs and keeps the bytes", async () => {
+    const bytes = new Uint8Array(await (await read({})).blob.arrayBuffer());
+    expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
+    expect(new TextDecoder().decode(bytes)).toBe("имя\r\n");
+  });
+  it("reports a cut file with its row count", async () =>
+    expect(await read({ "X-Truncated": "true", "X-Total-Count": "10000" })).toMatchObject({ truncated: true, rows: 10000 }));
+  it("is complete otherwise, also without the headers", async () => {
+    expect((await read({ "X-Truncated": "false", "X-Total-Count": "3" })).truncated).toBe(false);
+    expect((await read({})).truncated).toBe(false);
+  });
 });

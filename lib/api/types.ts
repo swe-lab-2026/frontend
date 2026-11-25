@@ -8,11 +8,15 @@ export type TokenResponse = {
   expires_in: number;
 };
 
+export type EmailLocale = "en" | "ru" | "kk";
+
 export type RegisterRequest = {
   email: string;
   password: string;
   first_name: string;
   last_name: string;
+  /** Language of the emails, starting with the verification code. */
+  locale: EmailLocale;
 };
 
 export type RegisterResponse = {
@@ -40,6 +44,8 @@ export type User = {
   status: string;
   email_verified_at: string | null;
   created_at: string;
+  /** Language of the emails. */
+  locale: string;
 };
 
 export type OrganizerProfile = {
@@ -200,6 +206,9 @@ export type TicketTypeInventory = {
   sold: number;
   returned: number;
   checked_in: number;
+  /** What is left of this type alone. */
+  type_remaining: number;
+  /** What can be sold now: also limited by the event capacity. */
   available: number;
 };
 
@@ -552,6 +561,8 @@ export type CurrencySales = {
   refund_count: number;
   refunds: string;
   net_revenue: string;
+  /** Demo estimate, see the API's `definitions`. Null with a ticket type filter. */
+  estimated_payout: string | null;
 };
 
 export type TicketTypeMetrics = {
@@ -742,6 +753,22 @@ export type AdminActivation = {
   terms_accepted_at: string | null;
   activated_at: string | null;
   sales_suspension_reason: string | null;
+};
+
+export type PayoutStatus = "PENDING" | "ACTIVE" | "BLOCKED";
+
+export type AdminPayoutAccount = {
+  id: string;
+  organizer: { id: string; name: string };
+  organizer_email: string | null;
+  organizer_verification_status: string;
+  provider: string;
+  /** Masked by the server. */
+  external_account_ref: string;
+  status: PayoutStatus | string;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
 };
 
 export type AdminRefund = {

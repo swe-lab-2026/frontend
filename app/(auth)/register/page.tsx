@@ -14,7 +14,7 @@ import { EMAIL_RE, isStrongPassword, passwordRules } from "@/lib/validation";
 type Form = { first_name: string; last_name: string; email: string; password: string };
 
 function RegisterForm() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const router = useRouter();
   const next = safeNext(useSearchParams().get("next"));
   const [form, setForm] = useState<Form>({ first_name: "", last_name: "", email: "", password: "" });
@@ -49,6 +49,7 @@ function RegisterForm() {
         password: form.password,
         first_name: form.first_name.trim(),
         last_name: form.last_name.trim(),
+        locale,
       });
       router.push(`/verify-email?email=${encodeURIComponent(result.email)}&ttl=${result.code_expires_in}&next=${encodeURIComponent(next)}`);
     } catch (error) {

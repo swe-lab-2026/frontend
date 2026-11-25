@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { Alert, Button, Card, CardHeader, Field, Input, PageLoader, Select } from "@/components/ui";
-import type { AdminQuery } from "@/lib/api/endpoints";
+import { adminApi, type AdminExportKind, type AdminQuery } from "@/lib/api/endpoints";
 import type { Page } from "@/lib/api/types";
-import { EXPORT_MAX, loadAll } from "@/lib/admin";
+import { EXPORT_MAX, loadAll, readExport } from "@/lib/admin";
 import { toCsv } from "@/lib/csv";
 import { saveBlob } from "@/lib/download";
 import { errorMessage } from "@/lib/errors";
@@ -27,6 +27,8 @@ export type AdminSection<T> = {
   columns: Column<T>[];
   searchHint?: string;
   filters?: { param: string; label: string; options: { value: string; label: string }[] }[];
+  /** Exported by the server (and logged there); other lists are exported from the rows shown. */
+  serverExport?: AdminExportKind;
   actions?: (row: T, reload: () => void) => React.ReactNode;
 };
 
@@ -53,6 +55,13 @@ export function AdminTable<T>({ section }: { section: AdminSection<T> }) {
     setExporting(true);
     setNotice(null);
     try {
+      if (section.serverExport) {
+        // Only `q` and `status` exist on these lists, so the file matches the screen.
+        const file = await readExport(await adminApi.exportCsv(section.serverExport, query));
+        saveBlob(file.blob, `biletflow-${section.key}.csv`);
+        if (file.truncated) setNotice({ tone: "warning", text: fmt(t.admin.exportTruncated, { count: file.rows }) });
+        return;
+      }
       const { rows, truncated } = await loadAll((limit, from) => section.load({ ...query, limit, offset: from }));
       const csv = toCsv(section.columns.map((c) => c.label), rows.map((row) => section.columns.map((c) => c.value(row))));
       saveBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), `biletflow-${section.key}.csv`);
