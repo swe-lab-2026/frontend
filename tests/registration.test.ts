@@ -31,21 +31,22 @@ describe("registrationWindow", () => {
 });
 
 describe("ticketAvailability", () => {
-  const tt = (over: object) => ({ is_free: true, sales_starts_at: null, sales_ends_at: null, min_per_order: 1, ...over });
+  const tt = (over: object) => ({ is_free: true, sales_starts_at: null, sales_ends_at: null, min_per_order: 1, available: 50, ...over });
 
-  it("offers free tickets", () => expect(ticketAvailability(tt({}), NOW)).toBe("available"));
-  it("offers paid tickets", () => expect(ticketAvailability(tt({ is_free: false }), NOW)).toBe("available"));
-  it("stops offering paid tickets once the server says sales are inactive", () => {
-    expect(ticketAvailability(tt({ is_free: false }), NOW, { paidInactive: true })).toBe("paidInactive");
-    expect(ticketAvailability(tt({}), NOW, { paidInactive: true })).toBe("available");
-  });
+  it("offers free tickets", () => expect(ticketAvailability(tt({}), NOW, false)).toBe("available"));
+  it("offers paid tickets", () => expect(ticketAvailability(tt({ is_free: false }), NOW, true)).toBe("available"));
+  it("offers only free tickets while paid sales are inactive", () =>
+    expect(ticketAvailability(tt({ is_free: false }), NOW, false)).toBe("paidInactive"));
   it("is sold out when nothing is left, or less than the minimum order", () => {
-    expect(ticketAvailability(tt({}), NOW, { left: 0 })).toBe("soldOut");
-    expect(ticketAvailability(tt({ min_per_order: 3 }), NOW, { left: 2 })).toBe("soldOut");
-    expect(ticketAvailability(tt({ min_per_order: 2 }), NOW, { left: 2 })).toBe("available");
+    expect(ticketAvailability(tt({ available: 0 }), NOW, true)).toBe("soldOut");
+    expect(ticketAvailability(tt({ min_per_order: 3, available: 2 }), NOW, true)).toBe("soldOut");
+    expect(ticketAvailability(tt({ min_per_order: 2, available: 2 }), NOW, true)).toBe("available");
   });
-  it("respects the sales start", () => expect(ticketAvailability(tt({ sales_starts_at: FUTURE }), NOW)).toBe("notStarted"));
-  it("respects the sales end", () => expect(ticketAvailability(tt({ sales_ends_at: PAST }), NOW)).toBe("ended"));
+  it("leaves the stock to the server when it is not known", () => {
+    expect(ticketAvailability(tt({ available: null }), NOW, true)).toBe("available");
+  });
+  it("respects the sales start", () => expect(ticketAvailability(tt({ sales_starts_at: FUTURE }), NOW, true)).toBe("notStarted"));
+  it("respects the sales end", () => expect(ticketAvailability(tt({ sales_ends_at: PAST }), NOW, true)).toBe("ended"));
 });
 
 describe("stepQuantity", () => {
@@ -80,21 +81,21 @@ describe("buildOrder with a promotion", () => {
 });
 
 describe("quantity limits", () => {
-  const tt = { min_per_order: 2, max_per_order: 5, capacity: 4 };
+  const tt = { min_per_order: 2, max_per_order: 5, capacity: 4, available: null };
   it("caps by per-order limit, capacity and known stock", () => {
     expect(maxQuantity(tt)).toBe(4);
-    expect(maxQuantity(tt, 3)).toBe(3);
-    expect(maxQuantity({ max_per_order: 5, capacity: 100 })).toBe(5);
+    expect(maxQuantity({ ...tt, available: 3 })).toBe(3);
+    expect(maxQuantity({ max_per_order: 5, capacity: 100, available: 80 })).toBe(5);
   });
   it.each([
-    [0, undefined, true],
-    [1, undefined, false],
-    [2, undefined, true],
-    [4, undefined, true],
-    [5, undefined, false],
+    [0, null, true],
+    [1, null, false],
+    [2, null, true],
+    [4, null, true],
+    [5, null, false],
     [4, 3, false],
-    [2.5, undefined, false],
-  ])("quantity %s with stock %s -> %s", (quantity, left, ok) => expect(isQuantityValid(tt, quantity, left)).toBe(ok));
+    [2.5, null, false],
+  ])("quantity %s with stock %s -> %s", (quantity, available, ok) => expect(isQuantityValid({ ...tt, available }, quantity)).toBe(ok));
 });
 
 describe("selection in the URL", () => {

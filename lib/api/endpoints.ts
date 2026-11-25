@@ -159,7 +159,7 @@ export const ordersApi = {
   startPayment: (id: string) => apiRequest<PaymentSimulation>(`/orders/${id}/payments/simulate`, { method: "POST" }),
   resolvePayment: (paymentId: string, outcome: PaymentOutcome) =>
     apiRequest<Payment>(`/orders/payments/${paymentId}/simulate-result`, { method: "POST", body: { outcome } }),
-  /** Marks the tickets CANCELLED. The backend allows this for the buyer only. */
+  /** Cancels every ticket of the order. Allowed for the buyer and the event owner. */
   cancel: (id: string) => apiRequest<Order>(`/orders/${id}/cancel`, { method: "POST" }),
   /** The signed-in user's orders, newest first. The backend scopes by buyer. */
   list: (limit = 200, offset = 0) => apiRequest<Order[]>("/orders", { query: { limit, offset } }),

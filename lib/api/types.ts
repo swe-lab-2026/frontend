@@ -128,6 +128,8 @@ export type Event = Omit<EventPayload, "images" | "visibility"> & {
   updated_at: string;
   /** Suspended by the platform: hidden from the public and not on sale. */
   is_suspended: boolean;
+  /** Paid checkout is open: activated, not stopped, event not suspended. */
+  paid_sales_active: boolean;
 };
 
 export type EventSummary = {
@@ -163,6 +165,8 @@ export type TicketType = TicketTypePayload & {
   id: string;
   event_id: string;
   is_free: boolean;
+  /** Tickets that can still be bought right now. Only the list endpoint sends it. */
+  available: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -263,12 +267,16 @@ export type Ticket = {
 
 export type OrderItemRequest = { ticket_type_id: string; quantity: number };
 
+export type AttendeeRequest = { ticket_type_id: string; full_name: string; email: string };
+
 /** At most one of `promo_code` / `campaign_token`; the server prices the order. */
 export type OrderCreateRequest = {
   event_id: string;
   items: OrderItemRequest[];
   promo_code?: string;
   campaign_token?: string;
+  /** One entry per ticket. Left out: every ticket is issued to the buyer. */
+  attendees?: AttendeeRequest[];
 };
 
 export type OrderItem = {

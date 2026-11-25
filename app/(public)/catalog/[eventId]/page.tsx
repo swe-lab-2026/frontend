@@ -3,11 +3,22 @@
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { AttendeeFields } from "@/components/checkout/AttendeeFields";
 import { PriceSummary } from "@/components/checkout/PriceSummary";
 import { Alert, BackLink, Badge, Button, Field, Input, LinkButton, PageLoader } from "@/components/ui";
 import { ApiError } from "@/lib/api/client";
 import { campaignsApi, catalogApi, ordersApi } from "@/lib/api/endpoints";
 import type { CampaignResolution, Event, TicketType } from "@/lib/api/types";
+import {
+  type AttendeeDraft,
+  type AttendeeErrors,
+  attendeeSlots,
+  EMPTY_ATTENDEE,
+  MAX_ATTENDEES,
+  serverAttendeeErrors,
+  toAttendees,
+  validateAttendees,
+} from "@/lib/attendees";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { discountLabel, PROMO_CODE_RE } from "@/lib/campaigns";
 import { formatDateTime } from "@/lib/datetime";
@@ -28,10 +39,10 @@ import {
 import { useApi } from "@/lib/useApi";
 import { usePromoQuote } from "@/lib/usePromoQuote";
 
-/** What the server revealed when it rejected an attempt (see ticketAvailability). */
-type Known = { left: Record<string, number>; paidInactive: boolean };
-
 type SubmitError = { text: string; orderId?: string };
+
+/** From this many tickets down, the remaining stock is highlighted. */
+const LOW_STOCK = 10;
 
 export default function PublicEventPage() {
   return (
@@ -70,7 +81,11 @@ function EventPage() {
   // Fixed per page view so availability does not flicker between renders.
   const [now] = useState(() => new Date());
   const [picked, setPicked] = useState<Record<string, number>>(() => decodeSelection(params.get("items")));
-  const [known, setKnown] = useState<Known>({ left: {}, paidInactive: false });
+  // Attendee details stay in memory only: they are personal data, so they never
+  // travel in the URL the way the selection does.
+  const [nameEach, setNameEach] = useState(false);
+  const [drafts, setDrafts] = useState<Record<string, AttendeeDraft>>({});
+  const [attendeeErrors, setAttendeeErrors] = useState<Record<string, AttendeeErrors>>({});
   // "link": whatever campaign the URL carries; otherwise a typed code or none.
   const [promoChoice, setPromoChoice] = useState<"link" | string | null>(() => {
     const code = params.get("promo");
@@ -86,14 +101,14 @@ function EventPage() {
   const ticketTypes = (allTicketTypes ?? []).filter((tt) => !tt.is_hidden);
   const regWindow = event ? registrationWindow(event, now) : "unavailable";
   const canRegister = regWindow === "open" && !event?.is_suspended;
-  const availabilityOf = (tt: TicketType) => ticketAvailability(tt, now, { left: known.left[tt.id], paidInactive: known.paidInactive });
+  const availabilityOf = (tt: TicketType) => ticketAvailability(tt, now, event?.paid_sales_active ?? false);
 
   // Everything that gets priced or submitted passes through here, so a stale
   // link or a ticket that just sold out can never end up in the order.
   const quantities: Record<string, number> = {};
   for (const tt of ticketTypes) {
     const quantity = picked[tt.id] ?? 0;
-    if (canRegister && quantity > 0 && availabilityOf(tt) === "available" && isQuantityValid(tt, quantity, known.left[tt.id])) {
+    if (canRegister && quantity > 0 && availabilityOf(tt) === "available" && isQuantityValid(tt, quantity)) {
       quantities[tt.id] = quantity;
     }
   }
@@ -137,6 +152,9 @@ function EventPage() {
   const isFree = quote ? Number(quote.final_total) === 0 : subtotal === 0;
   const hasAvailable = ticketTypes.some((tt) => availabilityOf(tt) === "available");
   const returnTo = eventHref(event.id, selection, promo);
+  const canName = totalTickets > 0 && totalTickets <= MAX_ATTENDEES;
+  const naming = nameEach && canName;
+  const slots = naming ? attendeeSlots(selection) : [];
 
   const windowNotice =
     event.status === "CANCELLED" ? t.attend.cancelled
@@ -147,8 +165,36 @@ function EventPage() {
 
   function step(tt: TicketType, delta: 1 | -1) {
     setSubmitError(null);
-    const max = maxQuantity(tt, known.left[tt.id]);
-    setPicked((prev) => ({ ...prev, [tt.id]: stepQuantity(quantities[tt.id] ?? 0, delta, tt.min_per_order, max) }));
+    setPicked((prev) => ({ ...prev, [tt.id]: stepQuantity(quantities[tt.id] ?? 0, delta, tt.min_per_order, maxQuantity(tt)) }));
+  }
+
+  function chooseNaming(each: boolean) {
+    setNameEach(each);
+    setAttendeeErrors({});
+    setSubmitError(null);
+    const first = attendeeSlots(selection)[0];
+    if (each && first && user) {
+      const mine = { full_name: `${user.first_name} ${user.last_name}`.trim(), email: user.email };
+      setDrafts((prev) => (prev[first.key] ? prev : { ...prev, [first.key]: mine }));
+    }
+  }
+
+  function editAttendee(key: string, draft: AttendeeDraft) {
+    const before = drafts[key] ?? EMPTY_ATTENDEE;
+    setDrafts((prev) => ({ ...prev, [key]: draft }));
+    // An error goes away once its own field is edited.
+    setAttendeeErrors((prev) =>
+      prev[key]
+        ? {
+            ...prev,
+            [key]: {
+              full_name: draft.full_name === before.full_name ? prev[key].full_name : undefined,
+              email: draft.email === before.email ? prev[key].email : undefined,
+            },
+          }
+        : prev,
+    );
+    setSubmitError(null);
   }
 
   function applyCode(e: React.FormEvent) {
@@ -169,29 +215,33 @@ function EventPage() {
       setSubmitError({ text: t.attend.selectHint });
       return;
     }
+    const invalid = validateAttendees(slots, drafts);
+    setAttendeeErrors(invalid);
+    if (Object.keys(invalid).length > 0) {
+      setSubmitError({ text: t.attend.attendeesIncomplete });
+      return;
+    }
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const order = await ordersApi.create(buildOrder(eventId, quantities, promo));
+      const order = await ordersApi.create(buildOrder(eventId, quantities, promo, naming ? toAttendees(slots, drafts) : null));
       router.push(`/orders/${order.id}`);
     } catch (error) {
+      if (error instanceof ApiError && error.code === "VALIDATION_ERROR") setAttendeeErrors(serverAttendeeErrors(error, slots));
       setSubmitError(describeRejection(error));
       setSubmitting(false);
     }
   }
 
-  /** Remembers what the server revealed, so the same attempt is not offered again. */
+  /** Also refreshes stock and sales status, so the same attempt is not offered again. */
   function describeRejection(error: unknown): SubmitError {
     const text = errorMessage(error, t);
     if (!(error instanceof ApiError)) return { text };
-    const { available, ticket_type_id: typeId, order_id: orderId } = error.details;
-    if (error.code === "TICKETS_SOLD_OUT" && typeof typeId === "string" && typeof available === "number") {
-      setKnown((prev) => ({ ...prev, left: { ...prev.left, [typeId]: available } }));
-    }
+    if (error.status === 409) reload();
+    const { available, order_id: orderId } = error.details;
     if (error.code === "EVENT_SOLD_OUT" && typeof available === "number") {
       return { text: available > 0 ? fmt(t.attend.eventLeft, { count: available }) : text };
     }
-    if (error.code === "PAID_SALES_NOT_ACTIVATED" || error.code === "PAID_SALES_SUSPENDED") setKnown((prev) => ({ ...prev, paidInactive: true }));
     if (error.code === "PROMO_ALREADY_RESERVED" && typeof orderId === "string") return { text, orderId };
     return { text };
   }
@@ -275,7 +325,6 @@ function EventPage() {
             <ul className="flex flex-col divide-y divide-line-soft">
               {ticketTypes.map((tt) => {
                 const availability = availabilityOf(tt);
-                const left = known.left[tt.id];
                 const quantity = quantities[tt.id] ?? 0;
                 return (
                   <li key={tt.id} className="flex flex-col gap-2 py-4 first:pt-0 last:pb-0">
@@ -292,8 +341,12 @@ function EventPage() {
                     {availability === "available" ? (
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-[13px] text-muted">
-                          {fmt(t.attend.perOrder, { min: tt.min_per_order, max: maxQuantity(tt) })}
-                          {left !== undefined && <span className="block font-semibold text-warn-ink">{fmt(t.attend.left, { count: left })}</span>}
+                          {fmt(t.attend.perOrder, { min: tt.min_per_order, max: Math.min(tt.max_per_order, tt.capacity) })}
+                          {canRegister && tt.available !== null && (
+                            <span className={`block ${tt.available <= LOW_STOCK ? "font-semibold text-warn-ink" : ""}`}>
+                              {fmt(t.attend.left, { count: tt.available })}
+                            </span>
+                          )}
                         </span>
                         {canRegister && (
                           <div className="flex items-center gap-1">
@@ -305,7 +358,7 @@ function EventPage() {
                             </output>
                             <StepButton
                               label={fmt(t.attend.increase, { name: tt.name })}
-                              disabled={submitting || quantity >= maxQuantity(tt, left)}
+                              disabled={submitting || quantity >= maxQuantity(tt)}
                               onClick={() => step(tt, 1)}
                             >
                               +
@@ -391,6 +444,28 @@ function EventPage() {
                 </div>
               )}
 
+              {status === "authenticated" && canName && (
+                <fieldset className="flex flex-col gap-1 border-t border-line-soft pt-4">
+                  <legend className="sr-only">{t.attend.attendeesTitle}</legend>
+                  <span aria-hidden="true" className="text-sm font-semibold">{t.attend.attendeesTitle}</span>
+                  <AttendeeChoice label={t.attend.attendeesMe} checked={!nameEach} disabled={submitting} onSelect={() => chooseNaming(false)} />
+                  <AttendeeChoice label={t.attend.attendeesEach} checked={nameEach} disabled={submitting} onSelect={() => chooseNaming(true)} />
+                </fieldset>
+              )}
+              {naming && user && (
+                <>
+                  <AttendeeFields
+                    slots={slots}
+                    names={Object.fromEntries(selected.map((tt) => [tt.id, tt.name]))}
+                    drafts={drafts}
+                    errors={attendeeErrors}
+                    disabled={submitting}
+                    onChange={editAttendee}
+                  />
+                  <p className="text-[13px] text-muted">{fmt(t.attend.attendeesEmailNote, { email: user.email })}</p>
+                </>
+              )}
+
               {submitError && (
                 <Alert tone="error">
                   {submitError.text}{" "}
@@ -412,7 +487,7 @@ function EventPage() {
                   >
                     {submitting ? t.attend.registering : isFree ? t.attend.register : t.checkout.toPayment}
                   </Button>
-                  {user && (
+                  {user && !naming && (
                     <div className="flex flex-col gap-0.5 text-[13px] text-muted">
                       <p>{fmt(t.attend.registerAs, { name: `${user.first_name} ${user.last_name}`.trim(), email: user.email })}</p>
                       <Link href="/profile" className="w-fit font-semibold text-brand-ink hover:underline">
@@ -439,6 +514,15 @@ function EventPage() {
         </aside>
       </div>
     </>
+  );
+}
+
+function AttendeeChoice({ label, checked, disabled, onSelect }: { label: string; checked: boolean; disabled: boolean; onSelect: () => void }) {
+  return (
+    <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-[15px]">
+      <input type="radio" name="attendees" className="h-5 w-5 shrink-0 accent-brand" checked={checked} disabled={disabled} onChange={onSelect} />
+      {label}
+    </label>
   );
 }
 
