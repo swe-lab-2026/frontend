@@ -1,4 +1,4 @@
-import { apiBlob, apiRequest } from "./client";
+import { ApiError, apiBlob, apiRequest } from "./client";
 import type {
   AdminAction,
   AdminActivation,
@@ -32,6 +32,7 @@ import type {
   Payment,
   PaymentOutcome,
   PaymentSimulation,
+  PaidSalesActivation,
   PayoutAccount,
   PayoutAccountCreate,
   PromoQuote,
@@ -104,6 +105,30 @@ export const organizersApi = {
     apiRequest<OrganizerProfile>("/organizers/me", { method: "PATCH", body }),
   upsertPayoutAccount: (body: PayoutAccountCreate) =>
     apiRequest<PayoutAccount>("/organizers/me/payout-account", { method: "PUT", body }),
+  /** The default account, or the newest one. The reference is masked. */
+  payoutAccount: () => apiRequest<PayoutAccount>("/organizers/me/payout-account"),
+  /** DEMO: no identity check happens. Can be switched off on the server. */
+  simulateVerification: () => apiRequest<OrganizerProfile>("/organizers/me/verification/simulate", { method: "POST" }),
+  /** DEMO: no bank check happens. Can be switched off on the server. */
+  simulatePayoutApproval: () => apiRequest<PayoutAccount>("/organizers/me/payout-account/simulate-approval", { method: "POST" }),
+};
+
+/** Null when the organizer has not added a payout account yet. */
+export function fetchPayoutAccount(): Promise<PayoutAccount | null> {
+  return organizersApi.payoutAccount().catch((err: unknown) => {
+    if (err instanceof ApiError && err.code === "PAYOUT_ACCOUNT_NOT_FOUND") return null;
+    throw err;
+  });
+}
+
+/** Event owner only. Activation covers one event. */
+export const paidSalesApi = {
+  status: (eventId: string) => apiRequest<PaidSalesActivation>(`/events/${eventId}/paid-sales/activation`),
+  acceptTerms: (eventId: string) =>
+    apiRequest<PaidSalesActivation>(`/events/${eventId}/paid-sales/terms`, { method: "POST", body: { accepted: true } }),
+  /** DEMO: no money is charged. */
+  payFee: (eventId: string) => apiRequest<PaidSalesActivation>(`/events/${eventId}/paid-sales/activation-fee`, { method: "POST" }),
+  activate: (eventId: string) => apiRequest<PaidSalesActivation>(`/events/${eventId}/paid-sales/activate`, { method: "POST" }),
 };
 
 export const eventsApi = {
