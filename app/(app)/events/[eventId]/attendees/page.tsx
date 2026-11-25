@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Alert, Button, Card, CardHeader, Input, PageLoader } from "@/components/ui";
 import { eventsApi, ordersApi } from "@/lib/api/endpoints";
 import type { EventAttendee } from "@/lib/api/types";
+import { groupByOrder } from "@/lib/attendees";
 import { formatDateTime } from "@/lib/datetime";
 import { errorMessage } from "@/lib/errors";
 import { fmt, useI18n } from "@/lib/i18n/I18nProvider";
@@ -21,10 +22,16 @@ export default function AttendeesPage() {
   const [notice, setNotice] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const eventStarted = new Date(event.starts_at) <= new Date();
 
-  // Free registrations only: cancelling does not refund, so paid orders need
-  // a refund flow instead (SRS 4.9).
-  async function cancelRegistration(a: EventAttendee) {
-    if (!window.confirm(fmt(t.attendees.confirmCancel, { name: a.full_name || a.email }))) return;
+  // Free registrations only: for a paid order the same request is a full
+  // refund, which has no screen yet (SRS 4.9). It always covers the whole order.
+  async function cancelRegistration(people: EventAttendee[]) {
+    const [a] = people;
+    const names = people.map((person) => person.full_name || person.email);
+    const question =
+      people.length > 1
+        ? fmt(t.attendees.confirmCancelOrder, { number: a.order_number, count: people.length, names: names.join(", ") })
+        : fmt(t.attendees.confirmCancel, { name: names[0] });
+    if (!window.confirm(question)) return;
     setCancellingId(a.order_id);
     setNotice(null);
     try {
@@ -39,8 +46,11 @@ export default function AttendeesPage() {
   }
 
   const needle = query.trim().toLowerCase();
-  const visible = (attendees ?? []).filter(
-    (a) => !needle || a.full_name.toLowerCase().includes(needle) || a.email.toLowerCase().includes(needle),
+  const orders = groupByOrder(attendees ?? []);
+  // A match keeps its whole order visible, because cancelling affects all of it.
+  const visible = orders.filter(
+    ({ attendees: people }) =>
+      !needle || people.some((a) => a.full_name.toLowerCase().includes(needle) || a.email.toLowerCase().includes(needle)),
   );
   const ticketCount = (attendees ?? []).reduce((sum, a) => sum + a.ticket_count, 0);
 
@@ -79,7 +89,7 @@ export default function AttendeesPage() {
                 className="w-full rounded-xl border border-field bg-surface px-3.5 text-base placeholder:text-muted"
               />
             </label>
-            <span className="text-sm text-muted">{fmt(t.attendees.summary, { people: attendees.length, tickets: ticketCount })}</span>
+            <span className="text-sm text-muted">{fmt(t.attendees.summary, { orders: orders.length, tickets: ticketCount })}</span>
           </div>
 
           {visible.length === 0 ? (
@@ -101,36 +111,49 @@ export default function AttendeesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visible.map((a) => (
-                    <tr key={a.attendee_id} className="border-t border-line-soft">
-                      <td className="px-4 py-3.5 text-[15px] font-semibold">{a.full_name || "—"}</td>
-                      <td className="px-3 py-3.5">
-                        <a href={`mailto:${a.email}`} className="text-brand-ink hover:underline">
-                          {a.email}
-                        </a>
-                      </td>
-                      <td className="px-3 py-3.5 text-right font-semibold">{a.ticket_count}</td>
-                      <td className="whitespace-nowrap px-3 py-3.5 text-right">
-                        {Number(a.total_amount) === 0 ? t.tickets.free : formatMoney(a.total_amount, a.currency, intlLocale)}
-                      </td>
-                      <td className="px-3 py-3.5 tabular-nums">#{a.order_number}</td>
-                      <td className="whitespace-nowrap px-3 py-3.5 text-muted">{formatDateTime(a.registered_at, event.timezone, intlLocale)}</td>
-                      <td className="px-4 py-2 text-right">
-                        {Number(a.total_amount) === 0 && !eventStarted && (
-                          <Button
-                            variant="ghost"
-                            className="text-danger-ink"
-                            loading={cancellingId === a.order_id}
-                            disabled={cancellingId !== null}
-                            onClick={() => cancelRegistration(a)}
-                            aria-label={fmt(t.attendees.cancelFor, { name: a.full_name || a.email })}
-                          >
-                            {t.attendees.cancel}
-                          </Button>
+                  {visible.map(({ order_id, attendees: people }) =>
+                    people.map((a, index) => (
+                      <tr key={a.attendee_id} className={index === 0 ? "border-t border-line-soft" : ""}>
+                        <td className="px-4 py-3.5 text-[15px] font-semibold">{a.full_name || "—"}</td>
+                        <td className="px-3 py-3.5">
+                          <a href={`mailto:${a.email}`} className="text-brand-ink hover:underline">
+                            {a.email}
+                          </a>
+                        </td>
+                        <td className="px-3 py-3.5 text-right font-semibold">{a.ticket_count}</td>
+                        {/* The rest belongs to the whole order, so it is shown once. */}
+                        {index === 0 && (
+                          <>
+                            <td rowSpan={people.length} className="whitespace-nowrap px-3 py-3.5 text-right">
+                              {Number(a.total_amount) === 0 ? t.tickets.free : formatMoney(a.total_amount, a.currency, intlLocale)}
+                            </td>
+                            <td rowSpan={people.length} className="px-3 py-3.5 tabular-nums">#{a.order_number}</td>
+                            <td rowSpan={people.length} className="whitespace-nowrap px-3 py-3.5 text-muted">
+                              {formatDateTime(a.registered_at, event.timezone, intlLocale)}
+                            </td>
+                            <td rowSpan={people.length} className="px-4 py-2 text-right">
+                              {Number(a.total_amount) === 0 && !eventStarted && (
+                                <Button
+                                  variant="ghost"
+                                  className="text-danger-ink"
+                                  loading={cancellingId === order_id}
+                                  disabled={cancellingId !== null}
+                                  onClick={() => cancelRegistration(people)}
+                                  aria-label={
+                                    people.length > 1
+                                      ? fmt(t.attendees.cancelOrder, { number: a.order_number })
+                                      : fmt(t.attendees.cancelFor, { name: a.full_name || a.email })
+                                  }
+                                >
+                                  {t.attendees.cancel}
+                                </Button>
+                              )}
+                            </td>
+                          </>
                         )}
-                      </td>
-                    </tr>
-                  ))}
+                      </tr>
+                    )),
+                  )}
                 </tbody>
               </table>
             </div>
