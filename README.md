@@ -1,7 +1,57 @@
-# BiletFlow — web app (organizer cabinet)
+# BiletFlow — web app
 
 Next.js 16 (App Router) + TypeScript + Tailwind CSS 4. Talks to the FastAPI backend in
 [`swe-lab-2026/backend`](https://github.com/swe-lab-2026/backend) over REST.
+
+One app serves three audiences: attendees (catalog, checkout, tickets, support),
+organizers (event cabinet) and Platform Admins (admin portal). Interface languages:
+Russian (default), Kazakh and English.
+
+## Features
+
+**Accounts**
+
+- Sign up with email verification code (with resend), sign in, sign out, password reset
+  by emailed link or token.
+- Profile: name, email language (`en` / `ru` / `kk`), organizer profile, demo
+  verification and payout account.
+- In-app notifications with an unread badge in the header.
+
+**Attendees**
+
+- Public catalog of upcoming events with search; event page with venue, time in the
+  event's timezone, images, ticket types and live availability.
+- Promo codes with a server-side price quote; named attendees per ticket.
+- Checkout: price review (subtotal, discount, processing fee), reservation timer,
+  demo payment (success / failed / abandoned); free registration without payment.
+- My orders and order details: ticket QR codes, PDF ticket download, cancel / refund
+  with eligibility, Add to calendar (Google link and `.ics`).
+- Report an event; list of own reports.
+- Support: cases with event / order / ticket context, message thread with polling.
+- Campaign QR links (`/campaigns/[token]`) forward to the event page.
+
+**Organizers**
+
+- Event list with a status filter; create, edit, duplicate, delete draft, publish /
+  unpublish (with publish checklist), cancel; image upload.
+- Ticket types (price, capacity, per-order limits, sale window, hidden) and inventory.
+- Event admins / check-in staff assigned by email.
+- Paid-sales activation checklist (terms, demo activation fee, verified profile,
+  active payout account).
+- Promo campaigns with Campaign QR (PNG) and per-campaign performance.
+- Analytics: KPIs, revenue, estimated payout, sales over time, attendance, campaigns;
+  activity history.
+- Attendees by order with cancel and refund; refund policy; refunds of a cancelled event.
+- Support requests from attendees about the event.
+
+**Platform Admins** (`/admin/[section]`)
+
+- Users, events, orders, payments, paid-sales activations, payout accounts, refunds,
+  disputes, reports, failures, campaigns, escalated support, platform settings
+  (activation fee, processing fee) and the admin action log.
+- Suspend / unsuspend users and events, stop / resume paid sales, review organizer
+  verification and payout accounts, resolve reports and disputes — each with a reason.
+- CSV export (server-side for users, events, orders and payments).
 
 ## Run locally
 
@@ -33,7 +83,9 @@ In development the backend prints email verification codes to its log
 
 ```
 app/
+  page.tsx                               entry: signed-in users go to /events, visitors to /catalog
   (auth)/login, register, verify-email   SCRUM-19: sign-in flow (public)
+  (auth)/forgot-password, reset-password password reset (email link carries token and email)
   (app)/layout.tsx                       protected area: redirects to /login when signed out
   (app)/profile                          SCRUM-19: account, organizer profile, demo payout account
   (app)/events                           SCRUM-20: event list with status filter
@@ -51,11 +103,19 @@ app/
   (app)/admin/[section]                  SCRUM-25: admin portal: moderation, reports, disputes, payouts, fees, CSV
   (public)/notifications                 in-app notifications
   (public)/support/reports               events the user reported
-  (public)/support                       SCRUM-25: cases, new case with context, polled thread
+  (public)/support                       SCRUM-25: case list
+  (public)/support/new                   SCRUM-25: new case with event / order / ticket context
+  (public)/support/[caseId]              SCRUM-25: polled message thread
+  (public)/catalog                       SCRUM-21: upcoming public events with search
   (public)/catalog/[eventId]             SCRUM-21: public event page, ticket and promo selection
-  (public)/orders/[orderId]              SCRUM-21: price review, reservation timer, demo payment
+  (public)/orders                        my orders
+  (public)/orders/[orderId]              SCRUM-21: price review, reservation timer, demo payment, tickets
   (public)/campaigns/[token]             SCRUM-23: Campaign QR target, forwards to the event page
-components/        ui.tsx (buttons, fields, cards…), chrome.tsx (header, logo, language), events/*
+components/        ui.tsx (buttons, fields, cards…), chrome.tsx (header, logo, language),
+                   admin/, campaigns/, checkout/, events/, notifications/, paid-sales/,
+                   refunds/, support/, tickets/ (TicketCard: QR + PDF)
+lib/               feature helpers: checkout, refunds, campaigns, calendar, csv, support,
+                   paidSales, notifications, validation, usePolling, usePromoQuote …
 lib/api/           types.ts (mirrors backend schemas), client.ts (fetch + token refresh), endpoints.ts
 lib/i18n/          ru (default), kk, en dictionaries — en.ts is the reference type
 lib/datetime.ts    event times are entered in the venue's IANA timezone and sent with an offset
